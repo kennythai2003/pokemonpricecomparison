@@ -703,6 +703,18 @@
         text-overflow: ellipsis;
         background: var(--surface);
       }
+      .gallery-delete {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+      }
+      .gallery-card:hover .gallery-delete {
+        opacity: 1;
+      }
     </style>
   </head>
   <body>
@@ -717,9 +729,12 @@
         <div class="panel-title"><span class="dot"></span> Add New Item</div>
 
         <div class="add-type-toggle">
-          <button class="add-type-btn active" data-type="card">Card</button>
+          <button class="add-type-btn active" data-type="card">Wishlist</button>
           <button class="add-type-btn" data-type="sealed">
             Sealed Product
+          </button>
+          <button class="add-type-btn" data-type="collection">
+            Collection
           </button>
         </div>
 
@@ -796,6 +811,35 @@
             </button>
           </div>
         </div>
+
+        <!-- Collection Form -->
+        <div class="add-form" id="collectionForm">
+          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="field">
+              <label>Card Name ✦</label>
+              <input id="addCollectionName" placeholder="e.g. Charizard" />
+            </div>
+            <div class="field">
+              <label>Set</label>
+              <input id="addCollectionSet" placeholder="e.g. Base Set" />
+            </div>
+            <div class="field">
+              <label>Link</label>
+              <input
+                id="addCollectionLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" id="addCollectionBtn">
+              ✦ Add to Collection
+            </button>
+            <button class="btn btn-mint" id="refreshCollectionBtn">
+              ↻ Refresh All Prices
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="status-bar" id="statusBar">
@@ -809,7 +853,7 @@
       <!-- Tabs -->
       <div class="tabs-container">
         <div class="tabs">
-          <button class="tab active" data-tab="cards">Cards</button>
+          <button class="tab active" data-tab="cards">Wishlist</button>
           <button class="tab" data-tab="sealed">Sealed</button>
           <button class="tab" data-tab="collection">Collection</button>
         </div>
@@ -818,7 +862,7 @@
         <div class="tab-content active tab-panel" id="cardsTab">
           <div class="results-header" style="margin-top: 16px">
             <div style="display: flex; align-items: center; gap: 10px">
-              <h2>Your Collection</h2>
+              <h2>Your Wishlist</h2>
               <span class="pill pill-pink" id="resultsCount">0 cards</span>
             </div>
           </div>
@@ -894,6 +938,7 @@
     <script>
       let cards = [];
       let sealedProducts = [];
+      let collection = [];
       let sortCol = null,
         sortDir = 1;
       let sealedSortCol = null,
@@ -935,7 +980,6 @@
         const res = await fetch("/api/cards");
         cards = await res.json();
         renderTable();
-        renderGallery();
       }
 
       function fmt(val) {
@@ -1100,7 +1144,6 @@
 
         // Re-render the table
         renderTable();
-        renderGallery();
 
         // Save the new order to the server
         await saveCardOrder();
@@ -1123,7 +1166,6 @@
         await fetch(`/api/cards/${id}`, { method: "DELETE" });
         cards = cards.filter((c) => c.id !== id);
         renderTable();
-        renderGallery();
       }
 
       document.querySelectorAll("th[data-col]").forEach((th) => {
@@ -1153,7 +1195,6 @@
         const card = await res.json();
         cards.push(card);
         renderTable();
-        renderGallery();
         ["addName", "addSet", "addUsLink", "addJpLink"].forEach(
           (id) => (document.getElementById(id).value = ""),
         );
@@ -1179,7 +1220,6 @@
         cards = data.results;
         document.getElementById("statusBar").classList.remove("visible");
         renderTable();
-        renderGallery();
       }
 
       document.getElementById("exportBtn").addEventListener("click", () => {
@@ -1252,7 +1292,6 @@
           const data = await res.json();
           cards = data.results;
           renderTable();
-          renderGallery();
           e.target.value = "";
         });
 
@@ -1282,28 +1321,83 @@
       const galleryGrid = document.getElementById("galleryGrid");
       const collectionCount = document.getElementById("collectionCount");
 
-      // ==================== COLLECTION GALLERY ====================
+      // ==================== COLLECTION ====================
+
+      async function loadCollection() {
+        const res = await fetch("/api/collection");
+        collection = await res.json();
+        renderGallery();
+      }
 
       function renderGallery() {
-        galleryGrid.innerHTML = cards
+        galleryGrid.innerHTML = collection
           .map((c) => {
             const imgHtml = c.image
               ? `<img src="${c.image}" alt="${c.name}" class="gallery-card-img" onerror="this.outerHTML='<div class=\\'gallery-card-placeholder\\'>🃏</div>'" />`
               : `<div class="gallery-card-placeholder">🃏</div>`;
-            const priceHtml = c.usPrice != null
-              ? `<div class="gallery-card-price">$${c.usPrice.toFixed(2)}</div>`
+            const priceHtml = c.price != null
+              ? `<div class="gallery-card-price">$${c.price.toFixed(2)}</div>`
               : "";
             return `
-              <div class="gallery-card">
+              <div class="gallery-card" data-id="${c.id}">
                 ${imgHtml}
                 ${priceHtml}
                 <div class="gallery-card-name">${c.name}</div>
+                <button class="btn btn-danger gallery-delete" onclick="deleteCollectionItem(${c.id})">✕</button>
               </div>
             `;
           })
-          .join("") || `<p style="color: var(--muted); text-align: center; grid-column: 1 / -1;">No cards yet — add some above!</p>`;
+          .join("") || `<p style="color: var(--muted); text-align: center; grid-column: 1 / -1;">No cards in your collection yet — add some above!</p>`;
 
-        collectionCount.textContent = `${cards.length} card${cards.length !== 1 ? "s" : ""}`;
+        collectionCount.textContent = `${collection.length} card${collection.length !== 1 ? "s" : ""}`;
+      }
+
+      async function deleteCollectionItem(id) {
+        await fetch(`/api/collection/${id}`, { method: "DELETE" });
+        collection = collection.filter((c) => c.id !== id);
+        renderGallery();
+      }
+
+      // Add collection item
+      document.getElementById("addCollectionBtn").addEventListener("click", async () => {
+        const name = document.getElementById("addCollectionName").value.trim();
+        if (!name) return alert("Card name is required ✦");
+        const res = await fetch("/api/collection", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            set: document.getElementById("addCollectionSet").value.trim(),
+            link: document.getElementById("addCollectionLink").value.trim(),
+          }),
+        });
+        const item = await res.json();
+        collection.push(item);
+        renderGallery();
+        ["addCollectionName", "addCollectionSet", "addCollectionLink"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+      });
+
+      // Refresh collection prices
+      document.getElementById("refreshCollectionBtn").addEventListener("click", fetchCollectionPrices);
+
+      async function fetchCollectionPrices() {
+        if (!collection.length) return alert("No cards in collection yet! 🃏");
+        document.getElementById("statusBar").classList.add("visible");
+        document.getElementById("statusText").textContent =
+          `Fetching prices for ${collection.length} collection cards…`;
+        document.getElementById("progressFill").style.width = "10%";
+
+        const res = await fetch("/api/collection/prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        collection = data.results;
+        document.getElementById("statusBar").classList.remove("visible");
+        renderGallery();
       }
 
       // ==================== SEALED PRODUCTS ====================
@@ -1529,6 +1623,7 @@
 
       loadCards();
       loadSealed();
+      loadCollection();
     </script>
   </body>
 </html>

@@ -65,6 +65,24 @@ async function initDb() {
       UPDATE sealed_products SET position = id WHERE position = 0 OR position IS NULL
     `);
 
+    // Create collection table (cards you own)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS collection (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        set_name VARCHAR(255) DEFAULT '',
+        price DECIMAL(10,2),
+        image TEXT,
+        link TEXT DEFAULT '',
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Initialize positions for collection
+    await pool.query(`
+      UPDATE collection SET position = id WHERE position = 0 OR position IS NULL
+    `);
+
     console.log("Database initialized");
   } catch (e) {
     console.error("Database init error:", e.message);
@@ -469,6 +487,138 @@ app.post("/api/sealed/prices", async (req, res) => {
     // Return updated products
     const updated = await pool.query("SELECT * FROM sealed_products ORDER BY position ASC");
     res.json({ results: updated.rows.map(rowToSealed) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ==================== COLLECTION API ====================
+
+// Helper to convert DB row to collection item API format
+function rowToCollectionItem(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    set: row.set_name,
+    price: row.price ? parseFloat(row.price) : null,
+    image: row.image,
+    link: row.link,
+  };
+}
+
+// GET all collection items
+app.get("/api/collection", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM collection ORDER BY position ASC");
+    res.json(result.rows.map(rowToCollectionItem));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST add a new collection item
+app.post("/api/collection", async (req, res) => {
+  const { name, set, price, image, link } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  try {
+    const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM collection");
+    const nextPosition = maxPos.rows[0].next_pos;
+
+    const result = await pool.query(
+      `INSERT INTO collection (name, set_name, price, image, link, position)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [name, set || "", price || null, image || null, link || "", nextPosition]
+    );
+    res.json(rowToCollectionItem(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// DELETE a collection item
+app.delete("/api/collection/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM collection WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT reorder collection items
+app.put("/api/collection/reorder", async (req, res) => {
+  const { itemIds } = req.body;
+  if (!itemIds || !Array.isArray(itemIds)) {
+    return res.status(400).json({ error: "itemIds array is required" });
+  }
+
+  try {
+    for (let i = 0; i < itemIds.length; i++) {
+      await pool.query("UPDATE collection SET position = $1 WHERE id = $2", [i, itemIds[i]]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST fetch prices for all collection items
+app.post("/api/collection/prices", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM collection");
+    const items = result.rows;
+
+    for (const item of items) {
+      let price = null;
+      let image = null;
+
+      const html = item.link ? await fetchHtml(item.link) : null;
+      await sleep(800);
+
+      if (html) {
+        const $ = cheerio.load(html);
+
+        // Price
+        const selectors = [
+          "#used_price td.price",
+          "#used_price .price",
+          "td#used_price",
+          ".js-price",
+        ];
+        for (const sel of selectors) {
+          const el = $(sel).first();
+          if (el.length) {
+            const text = el.text().trim().replace(/[^0-9.]/g, "");
+            if (text && parseFloat(text) > 0) {
+              price = parseFloat(text);
+              console.log(`✓ Collection $${text} - ${item.name}`);
+              break;
+            }
+          }
+        }
+
+        // Image
+        const img = $('img[itemprop="image"]').first().attr("src");
+        if (img) image = img;
+      }
+
+      // Update item in database
+      await pool.query(
+        `UPDATE collection SET price = $1, image = $2 WHERE id = $3`,
+        [price, image, item.id]
+      );
+    }
+
+    // Return updated items
+    const updated = await pool.query("SELECT * FROM collection ORDER BY position ASC");
+    res.json({ results: updated.rows.map(rowToCollectionItem) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Database error" });
