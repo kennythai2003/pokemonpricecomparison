@@ -3,28 +3,40 @@ const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const cors = require("cors");
 const path = require("path");
-const fs = require("fs");
+const { Pool } = require("pg");
 
 const app = express();
-const PORT = 3000;
-const DATA_FILE = path.join(__dirname, "cards.json");
+const PORT = process.env.PORT || 3000;
+
+// PostgreSQL connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
+
+// Initialize database table
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cards (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      set_name VARCHAR(255) DEFAULT '',
+      us_link TEXT DEFAULT '',
+      jp_link TEXT DEFAULT '',
+      us_price DECIMAL(10,2),
+      jp_price DECIMAL(10,2),
+      diff DECIMAL(10,2),
+      pct_diff DECIMAL(10,2),
+      image TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  console.log("Database initialized");
+}
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-
-function loadCards() {
-  if (!fs.existsSync(DATA_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveCards(cards) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(cards, null, 2));
-}
 
 async function fetchHtml(url) {
   const res = await fetch(url, {
@@ -78,138 +90,175 @@ async function scrapePrice(url) {
   }
 }
 
-async function scrapeImage(url) {
-  if (!url || url.trim() === "") return null;
-  try {
-    const html = await fetchHtml(url);
-    if (!html) return null;
-    const $ = cheerio.load(html);
-    const img = $('img[itemprop="image"]').first().attr("src");
-    return img || null;
-  } catch (e) {
-    return null;
-  }
-}
-
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// Helper to convert DB row to API format
+function rowToCard(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    set: row.set_name,
+    usLink: row.us_link,
+    jpLink: row.jp_link,
+    usPrice: row.us_price ? parseFloat(row.us_price) : null,
+    jpPrice: row.jp_price ? parseFloat(row.jp_price) : null,
+    diff: row.diff ? parseFloat(row.diff) : null,
+    pctDiff: row.pct_diff ? parseFloat(row.pct_diff) : null,
+    image: row.image,
+  };
+}
+
 // GET all cards
-app.get("/api/cards", (req, res) => {
-  res.json(loadCards());
+app.get("/api/cards", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    res.json(result.rows.map(rowToCard));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 // POST add a new card
-app.post("/api/cards", (req, res) => {
+app.post("/api/cards", async (req, res) => {
   const { name, set, usLink, jpLink } = req.body;
   if (!name) return res.status(400).json({ error: "Name is required" });
-  const cards = loadCards();
-  const newCard = {
-    id: Date.now(),
-    name,
-    set: set || "",
-    usLink: usLink || "",
-    jpLink: jpLink || "",
-    usPrice: null,
-    jpPrice: null,
-    diff: null,
-    pctDiff: null,
-    image: null,
-  };
-  cards.push(newCard);
-  saveCards(cards);
-  res.json(newCard);
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO cards (name, set_name, us_link, jp_link)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name, set || "", usLink || "", jpLink || ""]
+    );
+    res.json(rowToCard(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 // DELETE a card
-app.delete("/api/cards/:id", (req, res) => {
-  const cards = loadCards().filter((c) => c.id !== parseInt(req.params.id));
-  saveCards(cards);
-  res.json({ ok: true });
+app.delete("/api/cards/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM cards WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 // POST fetch prices for all cards
 app.post("/api/prices", async (req, res) => {
-  let cards = loadCards();
+  try {
+    const result = await pool.query("SELECT * FROM cards");
+    const cards = result.rows;
 
-  for (const card of cards) {
-    // Fetch US page HTML once and reuse for both price and image
-    const usHtml = card.usLink ? await fetchHtml(card.usLink) : null;
-    await sleep(800);
+    for (const card of cards) {
+      let usPrice = null;
+      let jpPrice = null;
+      let image = null;
 
-    if (usHtml) {
-      const $ = cheerio.load(usHtml);
+      // Fetch US page HTML once and reuse for both price and image
+      const usHtml = card.us_link ? await fetchHtml(card.us_link) : null;
+      await sleep(800);
 
-      // Price from US page
-      const selectors = [
-        "#used_price td.price",
-        "#used_price .price",
-        "td#used_price",
-        ".js-price",
-      ];
-      for (const sel of selectors) {
-        const el = $(sel).first();
-        if (el.length) {
-          const text = el
-            .text()
-            .trim()
-            .replace(/[^0-9.]/g, "");
-          if (text && parseFloat(text) > 0) {
-            card.usPrice = parseFloat(text);
-            console.log(`✓ US $${text} - ${card.name}`);
-            break;
+      if (usHtml) {
+        const $ = cheerio.load(usHtml);
+
+        // Price from US page
+        const selectors = [
+          "#used_price td.price",
+          "#used_price .price",
+          "td#used_price",
+          ".js-price",
+        ];
+        for (const sel of selectors) {
+          const el = $(sel).first();
+          if (el.length) {
+            const text = el
+              .text()
+              .trim()
+              .replace(/[^0-9.]/g, "");
+            if (text && parseFloat(text) > 0) {
+              usPrice = parseFloat(text);
+              console.log(`✓ US $${text} - ${card.name}`);
+              break;
+            }
           }
         }
+
+        // Image from US page
+        const img = $('img[itemprop="image"]').first().attr("src");
+        if (img) image = img;
       }
 
-      // Image from US page
-      const img = $('img[itemprop="image"]').first().attr("src");
-      if (img) card.image = img;
+      // JP price
+      jpPrice = await scrapePrice(card.jp_link);
+      await sleep(800);
+
+      const diff =
+        usPrice != null && jpPrice != null
+          ? parseFloat((usPrice - jpPrice).toFixed(2))
+          : null;
+      const pctDiff =
+        usPrice != null && jpPrice != null && jpPrice !== 0
+          ? parseFloat((((usPrice - jpPrice) / jpPrice) * 100).toFixed(1))
+          : null;
+
+      // Update card in database
+      await pool.query(
+        `UPDATE cards SET us_price = $1, jp_price = $2, diff = $3, pct_diff = $4, image = $5 WHERE id = $6`,
+        [usPrice, jpPrice, diff, pctDiff, image, card.id]
+      );
     }
 
-    // JP price
-    card.jpPrice = await scrapePrice(card.jpLink);
-    await sleep(800);
-
-    card.diff =
-      card.usPrice != null && card.jpPrice != null
-        ? parseFloat((card.usPrice - card.jpPrice).toFixed(2))
-        : null;
-    card.pctDiff =
-      card.usPrice != null && card.jpPrice != null && card.jpPrice !== 0
-        ? parseFloat(
-            (((card.usPrice - card.jpPrice) / card.jpPrice) * 100).toFixed(1),
-          )
-        : null;
+    // Return updated cards
+    const updated = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    res.json({ results: updated.rows.map(rowToCard) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
   }
-
-  saveCards(cards);
-  res.json({ results: cards });
 });
 
 // POST import from CSV
-app.post("/api/import", (req, res) => {
+app.post("/api/import", async (req, res) => {
   const { cards: newCards } = req.body;
-  const existing = loadCards();
-  const merged = [...existing];
-  for (const c of newCards) {
-    const exists = merged.find((e) => e.name === c.name && e.set === c.set);
-    if (!exists)
-      merged.push({
-        id: Date.now() + Math.random(),
-        ...c,
-        usPrice: null,
-        jpPrice: null,
-        diff: null,
-        pctDiff: null,
-        image: null,
-      });
+
+  try {
+    for (const c of newCards) {
+      // Check if card already exists
+      const existing = await pool.query(
+        "SELECT id FROM cards WHERE name = $1 AND set_name = $2",
+        [c.name, c.set || ""]
+      );
+
+      if (existing.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO cards (name, set_name, us_link, jp_link) VALUES ($1, $2, $3, $4)`,
+          [c.name, c.set || "", c.usLink || "", c.jpLink || ""]
+        );
+      }
+    }
+
+    const result = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    res.json({ results: result.rows.map(rowToCard) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
   }
-  saveCards(merged);
-  res.json({ results: merged });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🃏 Card Price Tracker running at http://localhost:${PORT}\n`);
+// Initialize DB and start server
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`\n🃏 Card Price Tracker running on port ${PORT}\n`);
+  });
+}).catch(e => {
+  console.error("Failed to initialize database:", e);
+  process.exit(1);
 });
