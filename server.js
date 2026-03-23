@@ -43,12 +43,18 @@ async function initDb() {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
-// Health check endpoint
+// Health check endpoint - must be before static files
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
+
+// Root route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.use(express.static(path.join(__dirname, "public")));
 
 async function fetchHtml(url) {
   const res = await fetch(url, {
