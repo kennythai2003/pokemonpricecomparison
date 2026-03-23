@@ -552,6 +552,11 @@
       }
 
       /* Tab styles */
+      .tabs-container {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
       .tabs {
         display: flex;
         gap: 0;
@@ -598,7 +603,11 @@
         display: block;
       }
       .tab-panel {
-        border-top: 1.5px solid var(--border);
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 var(--radius) var(--radius);
+        padding: 20px;
         margin-top: -1px;
       }
 
@@ -719,13 +728,14 @@
       </div>
 
       <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab active" data-tab="cards">Cards</button>
-        <button class="tab" data-tab="sealed">Sealed</button>
-      </div>
+      <div class="tabs-container">
+        <div class="tabs">
+          <button class="tab active" data-tab="cards">Cards</button>
+          <button class="tab" data-tab="sealed">Sealed</button>
+        </div>
 
-      <!-- Cards Tab Content -->
-      <div class="tab-content active tab-panel" id="cardsTab">
+        <!-- Cards Tab Content -->
+        <div class="tab-content active tab-panel" id="cardsTab">
         <div class="results-header" style="margin-top: 16px;">
           <div style="display: flex; align-items: center; gap: 10px">
             <h2>Your Collection</h2>
@@ -782,6 +792,7 @@
           </table>
         </div>
       </div>
+      </div><!-- end tabs-container -->
     </div>
 
     <script>
