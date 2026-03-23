@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Card Price Tracker ✿</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fdf5f5;
+        --bg2: #f5f6fd;
+        --surface: #ffffff;
+        --surface2: #f8f8fd;
+        --border: #d8dce8;
+        --border2: #f5c8c8;
+        --pink: #e89898;
+        --pink-light: #fdeaea;
+        --pink-dark: #c85858;
+        --mint: #98aee8;
+        --mint-light: #eaedfd;
+        --peach: #e8a8a8;
+        --peach-light: #fdeeed;
+        --lavender: #b8c4f0;
+        --lavender-light: #edf0fd;
+        --text: #3a1e1e;
+        --text2: #6a3a3a;
+        --muted: #b88888;
+        --positive: #5bbf94;
+        --negative: #c85858;
+        --shadow: 0 4px 20px rgba(100, 100, 200, 0.1);
+        --shadow-lg: 0 8px 40px rgba(100, 100, 200, 0.16);
+        --font-display: "Playfair Display", serif;
+        --font-body: "Nunito", sans-serif;
+        --radius: 20px;
+        --radius-sm: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: linear-gradient(to bottom right, #f0f2fd, #fdf0f0);
+        background-attachment: fixed;
+        color: var(--text);
+        font-family: var(--font-body);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 48px;
+        animation: fadeUp 0.6s ease both;
+      }
+
+      .header-badge {
+        display: inline-block;
+        background: #eaedfd;
+        color: #5870d0;
+        border: 1.5px solid #b8c4f0;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 4px 16px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        font-family: var(--font-display);
+        font-size: clamp(2.2rem, 5vw, 3.8rem);
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.1;
+        margin-bottom: 8px;
+      }
+      h1 em {
+        font-style: italic;
+        color: #5870d0;
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        box-shadow: var(--shadow);
+        margin-bottom: 24px;
+        animation: fadeUp 0.6s ease both;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .panel-title {
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .panel-title .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #98aee8;
+        display: inline-block;
+      }
+
+      .add-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+
+      .field label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+      }
+      .field input {
+        width: 100%;
+        background: var(--surface2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-family: var(--font-body);
+        font-size: 0.88rem;
+        font-weight: 500;
+        padding: 10px 14px;
+        outline: none;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .field input:focus {
+        border-color: #98aee8;
+        box-shadow: 0 0 0 3px rgba(152, 174, 232, 0.2);
+      }
+      .field input::placeholder {
+        color: var(--muted);
+        opacity: 0.6;
+      }
+
+      .btn {
+        font-family: var(--font-body);
+        font-weight: 700;
+        font-size: 0.85rem;
+        border: none;
+        border-radius: 99px;
+        padding: 10px 22px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #98aee8 0%, #5870d0 100%);
+        color: white;
+        box-shadow: 0 4px 14px rgba(88, 112, 208, 0.35);
+      }
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(88, 112, 208, 0.45);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-mint {
+        background: linear-gradient(
+          135deg,
+          var(--pink) 0%,
+          var(--pink-dark) 100%
+        );
+        color: white;
+        box-shadow: 0 4px 14px rgba(200, 88, 88, 0.35);
+      }
+      .btn-mint:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(200, 88, 88, 0.45);
+      }
+
+      .btn-ghost {
+        background: var(--surface2);
+        color: var(--text2);
+        border: 1.5px solid var(--border);
+      }
+      .btn-ghost:hover {
+        border-color: #98aee8;
+        color: #5870d0;
+        background: #eaedfd;
+      }
+
+      .btn-danger {
+        background: transparent;
+        color: var(--muted);
+        border: none;
+        font-size: 0.8rem;
+        padding: 4px 10px;
+        border-radius: 99px;
+      }
+      .btn-danger:hover {
+        background: var(--pink-light);
+        color: var(--pink-dark);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .import-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1.5px dashed var(--border);
+        flex-wrap: wrap;
+      }
+      .import-row span {
+        font-size: 0.8rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .upload-zone {
+        position: relative;
+        background: #eaedfd;
+        border: 1.5px dashed #b8c4f0;
+        border-radius: 99px;
+        padding: 8px 18px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #5870d0;
+        transition: all 0.2s;
+      }
+      .upload-zone:hover {
+        background: #98aee8;
+        color: white;
+      }
+      .upload-zone input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+
+      .status-bar {
+        display: none;
+        align-items: center;
+        gap: 14px;
+        background: #eaedfd;
+        border: 1.5px solid #b8c4f0;
+        border-radius: var(--radius-sm);
+        padding: 14px 20px;
+        margin-bottom: 24px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #5870d0;
+      }
+      .status-bar.visible {
+        display: flex;
+      }
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid #b8c4f0;
+        border-top-color: #5870d0;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .progress-bar-wrap {
+        flex: 1;
+        height: 6px;
+        background: #c8d0f0;
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #98aee8, #5870d0);
+        border-radius: 99px;
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .results-header h2 {
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .pill {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 12px;
+        border-radius: 99px;
+        letter-spacing: 0.06em;
+      }
+      .pill-pink {
+        background: #eaedfd;
+        color: #5870d0;
+        border: 1px solid #b8c4f0;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border-radius: var(--radius);
+        border: 1.5px solid var(--border);
+        box-shadow: var(--shadow);
+        background: var(--surface);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      thead {
+        background: linear-gradient(135deg, #fdeaea 0%, #eaedfd 100%);
+      }
+      th {
+        padding: 14px 18px;
+        text-align: left;
+        font-family: var(--font-body);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+        transition: color 0.15s;
+      }
+      th:hover {
+        color: #5870d0;
+      }
+      th.sorted {
+        color: #5870d0;
+      }
+      th.sorted::after {
+        content: " ↕";
+        font-size: 0.65rem;
+      }
+      td {
+        padding: 10px 18px;
+        border-top: 1px solid var(--border);
+        white-space: nowrap;
+        transition: background 0.15s;
+        vertical-align: middle;
+      }
+      tr:hover td {
+        background: #eaedfd;
+      }
+
+      .card-img {
+        width: 80px;
+        height: 112px;
+        object-fit: contain;
+        border-radius: 6px;
+        background: #eaedfd;
+        display: block;
+      }
+      .card-img-placeholder {
+        width: 80px;
+        height: 112px;
+        border-radius: 6px;
+        background: #eaedfd;
+        border: 1.5px dashed #b8c4f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .card-name {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+      .card-set {
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-weight: 600;
+        margin-top: 2px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .price-val {
+        font-weight: 700;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+      .price-null {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .diff-positive {
+        color: var(--positive);
+        font-weight: 700;
+      }
+      .diff-negative {
+        color: var(--negative);
+        font-weight: 700;
+      }
+      .pct-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 99px;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .pct-positive {
+        background: #e6f9f2;
+        color: var(--positive);
+      }
+      .pct-negative {
+        background: var(--pink-light);
+        color: var(--pink-dark);
+      }
+
+      .link-btn {
+        display: inline-block;
+        color: var(--text2);
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 99px;
+        padding: 3px 10px;
+        transition: all 0.15s;
+        margin-right: 4px;
+      }
+      .link-btn:hover {
+        background: #eaedfd;
+        border-color: #98aee8;
+        color: #5870d0;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 24px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .empty-state .emoji {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 12px;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 24px 16px;
+        }
+        .add-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="header-badge">✿ Pokemon Card Tracker</div>
+        <h1>Card Prices<em> Compared</em></h1>
+        <p class="subtitle">US vs JP · PriceCharting</p>
+      </header>
+
+      <div class="panel">
+        <div class="panel-title"><span class="dot"></span> Add a Card</div>
+        <div class="add-grid">
+          <div class="field">
+            <label>Card Name ✦</label
+            ><input id="addName" placeholder="e.g. Leafeon ex" />
+          </div>
+          <div class="field">
+            <label>Set</label
+            ><input id="addSet" placeholder="e.g. Prismatic Evolutions" />
+          </div>
+          <div class="field">
+            <label>US Link</label
+            ><input
+              id="addUsLink"
+              placeholder="https://www.pricecharting.com/..."
+            />
+          </div>
+          <div class="field">
+            <label>JP Link</label
+            ><input
+              id="addJpLink"
+              placeholder="https://www.pricecharting.com/..."
+            />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="addBtn">✦ Add Card</button>
+          <button class="btn btn-mint" id="refreshAllBtn">
+            ↻ Refresh All Prices
+          </button>
+          <button class="btn btn-ghost" id="exportBtn">↓ Export CSV</button>
+        </div>
+        <div class="import-row">
+          <span>Bulk import:</span>
+          <div class="upload-zone">
+            📂 Upload CSV
+            <input type="file" id="csvInput" accept=".csv" />
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar" id="statusBar">
+        <div class="spinner"></div>
+        <span id="statusText">Fetching prices…</span>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="results-header">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <h2>Your Collection</h2>
+          <span class="pill pill-pink" id="resultsCount">0 cards</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th data-col="name">Card</th>
+              <th data-col="usPrice">🇺🇸 US Price</th>
+              <th data-col="jpPrice">🇯🇵 JP Price</th>
+              <th data-col="diff">Difference</th>
+              <th data-col="pctDiff">% Diff</th>
+              <th>Target Range</th>
+              <th>Links</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      let cards = [];
+      let sortCol = null,
+        sortDir = 1;
+
+      async function loadCards() {
+        const res = await fetch("/api/cards");
+        cards = await res.json();
+        renderTable();
+      }
+
+      function fmt(val) {
+        if (val == null) return `<span class="price-null">—</span>`;
+        return `<span class="price-val">$${val.toFixed(2)}</span>`;
+      }
+
+      function renderTable() {
+        const sorted = sortCol
+          ? [...cards].sort((a, b) => {
+              const av = a[sortCol] ?? -Infinity;
+              const bv = b[sortCol] ?? -Infinity;
+              return typeof av === "string"
+                ? av.localeCompare(bv) * sortDir
+                : (av - bv) * sortDir;
+            })
+          : cards;
+
+        tableBody.innerHTML =
+          sorted
+            .map((r) => {
+              const diffClass =
+                r.diff > 0
+                  ? "diff-positive"
+                  : r.diff < 0
+                    ? "diff-negative"
+                    : "";
+              const diffStr =
+                r.diff != null
+                  ? `<span class="${diffClass}">${r.diff > 0 ? "+" : ""}$${Math.abs(r.diff).toFixed(2)}</span>`
+                  : `<span class="price-null">—</span>`;
+              const pctStr =
+                r.pctDiff != null
+                  ? `<span class="pct-badge ${r.pctDiff > 0 ? "pct-positive" : "pct-negative"}">${r.pctDiff > 0 ? "+" : ""}${r.pctDiff}%</span>`
+                  : `<span class="price-null">—</span>`;
+              const links = [
+                r.usLink
+                  ? `<a href="${r.usLink}" target="_blank" class="link-btn">🇺🇸 US</a>`
+                  : "",
+                r.jpLink
+                  ? `<a href="${r.jpLink}" target="_blank" class="link-btn">🇯🇵 JP</a>`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join("");
+
+              const imgCell = r.image
+                ? `<img src="${r.image}" alt="${r.name}" class="card-img" onerror="this.style.display='none'" />`
+                : `<div class="card-img-placeholder">🃏</div>`;
+
+              // Calculate target range (80%-90% of cheaper price)
+              let targetRange = `<span class="price-null">—</span>`;
+              if (r.usPrice != null && r.jpPrice != null) {
+                const cheaper = Math.min(r.usPrice, r.jpPrice);
+                const low = (cheaper * 0.8).toFixed(2);
+                const high = (cheaper * 0.9).toFixed(2);
+                targetRange = `<span class="price-val">$${low} - $${high}</span>`;
+              } else if (r.usPrice != null) {
+                const low = (r.usPrice * 0.8).toFixed(2);
+                const high = (r.usPrice * 0.9).toFixed(2);
+                targetRange = `<span class="price-val">$${low} - $${high}</span>`;
+              } else if (r.jpPrice != null) {
+                const low = (r.jpPrice * 0.8).toFixed(2);
+                const high = (r.jpPrice * 0.9).toFixed(2);
+                targetRange = `<span class="price-val">$${low} - $${high}</span>`;
+              }
+
+              return `<tr>
+        <td>${imgCell}</td>
+        <td>
+          <div class="card-name">${r.name}</div>
+          ${r.set ? `<div class="card-set">${r.set}</div>` : ""}
+        </td>
+        <td>${fmt(r.usPrice)}</td>
+        <td>${fmt(r.jpPrice)}</td>
+        <td>${diffStr}</td>
+        <td>${pctStr}</td>
+        <td>${targetRange}</td>
+        <td>${links}</td>
+        <td><button class="btn btn-danger" onclick="deleteCard(${r.id})">✕</button></td>
+      </tr>`;
+            })
+            .join("") ||
+          `<tr><td colspan="9" class="empty-state"><span class="emoji">🌸</span>No cards yet — add one above!</td></tr>`;
+
+        resultsCount.textContent = `${cards.length} card${cards.length !== 1 ? "s" : ""}`;
+        document
+          .querySelectorAll("th[data-col]")
+          .forEach((th) =>
+            th.classList.toggle("sorted", th.dataset.col === sortCol),
+          );
+      }
+
+      async function deleteCard(id) {
+        await fetch(`/api/cards/${id}`, { method: "DELETE" });
+        cards = cards.filter((c) => c.id !== id);
+        renderTable();
+      }
+
+      document.querySelectorAll("th[data-col]").forEach((th) => {
+        th.addEventListener("click", () => {
+          if (sortCol === th.dataset.col) sortDir *= -1;
+          else {
+            sortCol = th.dataset.col;
+            sortDir = 1;
+          }
+          renderTable();
+        });
+      });
+
+      document.getElementById("addBtn").addEventListener("click", async () => {
+        const name = document.getElementById("addName").value.trim();
+        if (!name) return alert("Card name is required ✦");
+        const res = await fetch("/api/cards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            set: document.getElementById("addSet").value.trim(),
+            usLink: document.getElementById("addUsLink").value.trim(),
+            jpLink: document.getElementById("addJpLink").value.trim(),
+          }),
+        });
+        const card = await res.json();
+        cards.push(card);
+        renderTable();
+        ["addName", "addSet", "addUsLink", "addJpLink"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+      });
+
+      document
+        .getElementById("refreshAllBtn")
+        .addEventListener("click", fetchPrices);
+
+      async function fetchPrices() {
+        if (!cards.length) return alert("No cards to fetch yet! 🌸");
+        document.getElementById("statusBar").classList.add("visible");
+        document.getElementById("statusText").textContent =
+          `Fetching prices for ${cards.length} cards… grab a snack, this takes a moment ✿`;
+        document.getElementById("progressFill").style.width = "10%";
+
+        const res = await fetch("/api/prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        cards = data.results;
+        document.getElementById("statusBar").classList.remove("visible");
+        renderTable();
+      }
+
+      document.getElementById("exportBtn").addEventListener("click", () => {
+        const rows = [
+          [
+            "Name",
+            "Set",
+            "US Price",
+            "JP Price",
+            "Difference",
+            "% Difference",
+            "US Link",
+            "JP Link",
+          ],
+        ];
+        cards.forEach((r) =>
+          rows.push([
+            r.name,
+            r.set,
+            r.usPrice ?? "",
+            r.jpPrice ?? "",
+            r.diff ?? "",
+            r.pctDiff != null ? r.pctDiff + "%" : "",
+            r.usLink,
+            r.jpLink,
+          ]),
+        );
+        const csv = rows
+          .map((r) => r.map((v) => `"${v}"`).join(","))
+          .join("\n");
+        const a = document.createElement("a");
+        a.href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+        a.download = "card-prices.csv";
+        a.click();
+      });
+
+      document
+        .getElementById("csvInput")
+        .addEventListener("change", async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const text = await file.text();
+          const lines = text
+            .trim()
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean);
+          const headers = parseCSVLine(lines[0]);
+          const rows = lines.slice(1).map((l) => parseCSVLine(l));
+          const idx = (name) =>
+            headers.findIndex((h) => h.toLowerCase().includes(name));
+          const nameCol = idx("name"),
+            setCol = idx("set"),
+            usLinkCol = idx("us link"),
+            jpLinkCol = idx("jp link");
+          const newCards = rows
+            .map((r) => ({
+              name: r[nameCol] || "",
+              set: setCol >= 0 ? r[setCol] : "",
+              usLink: usLinkCol >= 0 ? r[usLinkCol] : "",
+              jpLink: jpLinkCol >= 0 ? r[jpLinkCol] : "",
+            }))
+            .filter((c) => c.name);
+
+          const res = await fetch("/api/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cards: newCards }),
+          });
+          const data = await res.json();
+          cards = data.results;
+          renderTable();
+          e.target.value = "";
+        });
+
+      function parseCSVLine(line) {
+        const result = [];
+        let cur = "",
+          inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"') {
+            inQuotes = !inQuotes;
+          } else if (c === "," && !inQuotes) {
+            result.push(cur.trim());
+            cur = "";
+          } else {
+            cur += c;
+          }
+        }
+        result.push(cur.trim());
+        return result;
+      }
+
+      const tableBody = document.getElementById("tableBody");
+      const resultsCount = document.getElementById("resultsCount");
+
+      loadCards();
+    </script>
+  </body>
+</html>

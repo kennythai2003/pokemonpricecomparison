@@ -1,0 +1,16 @@
+{
+  "name": "card-price-tracker",
+  "version": "1.0.0",
+  "description": "Pokemon card price tracker using PriceCharting",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.0"
+  }
+}
