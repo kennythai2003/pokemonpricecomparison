@@ -601,6 +601,40 @@
         border-top: 1.5px solid var(--border);
         margin-top: -1px;
       }
+
+      /* Add type toggle */
+      .add-type-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .add-type-btn {
+        font-family: var(--font-body);
+        font-size: 0.8rem;
+        font-weight: 700;
+        padding: 8px 20px;
+        border: 1.5px solid var(--border);
+        background: var(--surface2);
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: 99px;
+        transition: all 0.2s;
+      }
+      .add-type-btn:hover {
+        border-color: #98aee8;
+        color: #5870d0;
+      }
+      .add-type-btn.active {
+        background: linear-gradient(135deg, #98aee8 0%, #5870d0 100%);
+        color: white;
+        border-color: transparent;
+      }
+      .add-form {
+        display: none;
+      }
+      .add-form.active {
+        display: block;
+      }
     </style>
   </head>
   <body>
@@ -612,43 +646,66 @@
       </header>
 
       <div class="panel">
-        <div class="panel-title"><span class="dot"></span> Add a Card</div>
-        <div class="add-grid">
-          <div class="field">
-            <label>Card Name ✦</label
-            ><input id="addName" placeholder="e.g. Leafeon ex" />
+        <div class="panel-title"><span class="dot"></span> Add New Item</div>
+
+        <div class="add-type-toggle">
+          <button class="add-type-btn active" data-type="card">Card</button>
+          <button class="add-type-btn" data-type="sealed">Sealed Product</button>
+        </div>
+
+        <!-- Card Form -->
+        <div class="add-form active" id="cardForm">
+          <div class="add-grid">
+            <div class="field">
+              <label>Card Name ✦</label>
+              <input id="addName" placeholder="e.g. Leafeon ex" />
+            </div>
+            <div class="field">
+              <label>Set</label>
+              <input id="addSet" placeholder="e.g. Prismatic Evolutions" />
+            </div>
+            <div class="field">
+              <label>US Link</label>
+              <input id="addUsLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
+            <div class="field">
+              <label>JP Link</label>
+              <input id="addJpLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
           </div>
-          <div class="field">
-            <label>Set</label
-            ><input id="addSet" placeholder="e.g. Prismatic Evolutions" />
+          <div class="actions">
+            <button class="btn btn-primary" id="addBtn">✦ Add Card</button>
+            <button class="btn btn-mint" id="refreshAllBtn">↻ Refresh All Prices</button>
+            <button class="btn btn-ghost" id="exportBtn">↓ Export CSV</button>
           </div>
-          <div class="field">
-            <label>US Link</label
-            ><input
-              id="addUsLink"
-              placeholder="https://www.pricecharting.com/..."
-            />
-          </div>
-          <div class="field">
-            <label>JP Link</label
-            ><input
-              id="addJpLink"
-              placeholder="https://www.pricecharting.com/..."
-            />
+          <div class="import-row">
+            <span>Bulk import:</span>
+            <div class="upload-zone">
+              📂 Upload CSV
+              <input type="file" id="csvInput" accept=".csv" />
+            </div>
           </div>
         </div>
-        <div class="actions">
-          <button class="btn btn-primary" id="addBtn">✦ Add Card</button>
-          <button class="btn btn-mint" id="refreshAllBtn">
-            ↻ Refresh All Prices
-          </button>
-          <button class="btn btn-ghost" id="exportBtn">↓ Export CSV</button>
-        </div>
-        <div class="import-row">
-          <span>Bulk import:</span>
-          <div class="upload-zone">
-            📂 Upload CSV
-            <input type="file" id="csvInput" accept=".csv" />
+
+        <!-- Sealed Form -->
+        <div class="add-form" id="sealedForm">
+          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="field">
+              <label>Product Name ✦</label>
+              <input id="addSealedName" placeholder="e.g. Elite Trainer Box" />
+            </div>
+            <div class="field">
+              <label>Regular Link</label>
+              <input id="addSealedRegularLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
+            <div class="field">
+              <label>Pokemon Center Link</label>
+              <input id="addSealedPCLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" id="addSealedBtn">✦ Add Product</button>
+            <button class="btn btn-mint" id="refreshSealedBtn">↻ Refresh All Prices</button>
           </div>
         </div>
       </div>
@@ -699,29 +756,7 @@
 
       <!-- Sealed Tab Content -->
       <div class="tab-content tab-panel" id="sealedTab">
-        <div class="panel" style="margin-top: 16px;">
-          <div class="panel-title"><span class="dot" style="background: #e89898;"></span> Add a Sealed Product</div>
-          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div class="field">
-              <label>Product Name ✦</label>
-              <input id="addSealedName" placeholder="e.g. Elite Trainer Box" />
-            </div>
-            <div class="field">
-              <label>Regular Link</label>
-              <input id="addSealedRegularLink" placeholder="https://www.pricecharting.com/..." />
-            </div>
-            <div class="field">
-              <label>Pokemon Center Link</label>
-              <input id="addSealedPCLink" placeholder="https://www.pricecharting.com/..." />
-            </div>
-          </div>
-          <div class="actions">
-            <button class="btn btn-primary" id="addSealedBtn">✦ Add Product</button>
-            <button class="btn btn-mint" id="refreshSealedBtn">↻ Refresh All Prices</button>
-          </div>
-        </div>
-
-        <div class="results-header">
+        <div class="results-header" style="margin-top: 16px;">
           <div style="display: flex; align-items: center; gap: 10px">
             <h2>Sealed Products</h2>
             <span class="pill pill-pink" id="sealedCount">0 products</span>
@@ -764,6 +799,16 @@
           document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
           tab.classList.add('active');
           document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+        });
+      });
+
+      // Add type toggle (Card vs Sealed)
+      document.querySelectorAll('.add-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.add-type-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.add-form').forEach(f => f.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById(btn.dataset.type + 'Form').classList.add('active');
         });
       });
 
