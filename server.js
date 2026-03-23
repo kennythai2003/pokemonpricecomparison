@@ -10,28 +10,35 @@ const PORT = process.env.PORT || 3000;
 
 // PostgreSQL connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DATABASE_URL || process.env.DATABASE_PRIVATE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // Initialize database table
 async function initDb() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS cards (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      set_name VARCHAR(255) DEFAULT '',
-      us_link TEXT DEFAULT '',
-      jp_link TEXT DEFAULT '',
-      us_price DECIMAL(10,2),
-      jp_price DECIMAL(10,2),
-      diff DECIMAL(10,2),
-      pct_diff DECIMAL(10,2),
-      image TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  console.log("Database initialized");
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cards (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        set_name VARCHAR(255) DEFAULT '',
+        us_link TEXT DEFAULT '',
+        jp_link TEXT DEFAULT '',
+        us_price DECIMAL(10,2),
+        jp_price DECIMAL(10,2),
+        diff DECIMAL(10,2),
+        pct_diff DECIMAL(10,2),
+        image TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Database initialized");
+  } catch (e) {
+    console.error("Database init error:", e.message);
+    throw e;
+  }
 }
 
 app.use(cors());
