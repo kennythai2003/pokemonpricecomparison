@@ -550,6 +550,57 @@
       .drag-handle:hover {
         color: #5870d0;
       }
+
+      /* Tab styles */
+      .tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 0;
+      }
+      .tab {
+        font-family: var(--font-body);
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 12px 28px;
+        border: 1.5px solid var(--border);
+        border-bottom: none;
+        background: var(--surface2);
+        color: var(--muted);
+        cursor: pointer;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        margin-right: -1px;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .tab:hover {
+        background: #eaedfd;
+        color: #5870d0;
+      }
+      .tab.active {
+        background: var(--surface);
+        color: #5870d0;
+        border-color: var(--border);
+        z-index: 1;
+      }
+      .tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--surface);
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      .tab-panel {
+        border-top: 1.5px solid var(--border);
+        margin-top: -1px;
+      }
     </style>
   </head>
   <body>
@@ -610,38 +661,111 @@
         </div>
       </div>
 
-      <div class="results-header">
-        <div style="display: flex; align-items: center; gap: 10px">
-          <h2>Your Collection</h2>
-          <span class="pill pill-pink" id="resultsCount">0 cards</span>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="cards">Cards</button>
+        <button class="tab" data-tab="sealed">Sealed</button>
+      </div>
+
+      <!-- Cards Tab Content -->
+      <div class="tab-content active tab-panel" id="cardsTab">
+        <div class="results-header" style="margin-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <h2>Your Collection</h2>
+            <span class="pill pill-pink" id="resultsCount">0 cards</span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th></th>
+                <th data-col="name" data-table="cards">Card</th>
+                <th data-col="usPrice" data-table="cards">🇺🇸 US Price</th>
+                <th data-col="jpPrice" data-table="cards">🇯🇵 JP Price</th>
+                <th data-col="diff" data-table="cards">Difference</th>
+                <th data-col="pctDiff" data-table="cards">% Diff</th>
+                <th>Target Range</th>
+                <th>Links</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
         </div>
       </div>
 
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th></th>
-              <th></th>
-              <th data-col="name">Card</th>
-              <th data-col="usPrice">🇺🇸 US Price</th>
-              <th data-col="jpPrice">🇯🇵 JP Price</th>
-              <th data-col="diff">Difference</th>
-              <th data-col="pctDiff">% Diff</th>
-              <th>Target Range</th>
-              <th>Links</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tableBody"></tbody>
-        </table>
+      <!-- Sealed Tab Content -->
+      <div class="tab-content tab-panel" id="sealedTab">
+        <div class="panel" style="margin-top: 16px;">
+          <div class="panel-title"><span class="dot" style="background: #e89898;"></span> Add a Sealed Product</div>
+          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="field">
+              <label>Product Name ✦</label>
+              <input id="addSealedName" placeholder="e.g. Elite Trainer Box" />
+            </div>
+            <div class="field">
+              <label>Regular Link</label>
+              <input id="addSealedRegularLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
+            <div class="field">
+              <label>Pokemon Center Link</label>
+              <input id="addSealedPCLink" placeholder="https://www.pricecharting.com/..." />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" id="addSealedBtn">✦ Add Product</button>
+            <button class="btn btn-mint" id="refreshSealedBtn">↻ Refresh All Prices</button>
+          </div>
+        </div>
+
+        <div class="results-header">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <h2>Sealed Products</h2>
+            <span class="pill pill-pink" id="sealedCount">0 products</span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th></th>
+                <th data-col="name" data-table="sealed">Product</th>
+                <th data-col="regularPrice" data-table="sealed">Regular Price</th>
+                <th data-col="pokemonCenterPrice" data-table="sealed">Pokemon Center</th>
+                <th data-col="diff" data-table="sealed">Difference</th>
+                <th data-col="pctDiff" data-table="sealed">% Diff</th>
+                <th>Links</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sealedTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <script>
       let cards = [];
+      let sealedProducts = [];
       let sortCol = null,
         sortDir = 1;
+      let sealedSortCol = null,
+        sealedSortDir = 1;
+
+      // Tab switching
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          tab.classList.add('active');
+          document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+        });
+      });
 
       async function loadCards() {
         const res = await fetch("/api/cards");
@@ -983,8 +1107,219 @@
 
       const tableBody = document.getElementById("tableBody");
       const resultsCount = document.getElementById("resultsCount");
+      const sealedTableBody = document.getElementById("sealedTableBody");
+      const sealedCount = document.getElementById("sealedCount");
+
+      // ==================== SEALED PRODUCTS ====================
+
+      async function loadSealed() {
+        const res = await fetch("/api/sealed");
+        sealedProducts = await res.json();
+        renderSealedTable();
+      }
+
+      function renderSealedTable() {
+        const sorted = sealedSortCol
+          ? [...sealedProducts].sort((a, b) => {
+              const av = a[sealedSortCol] ?? -Infinity;
+              const bv = b[sealedSortCol] ?? -Infinity;
+              return typeof av === "string"
+                ? av.localeCompare(bv) * sealedSortDir
+                : (av - bv) * sealedSortDir;
+            })
+          : sealedProducts;
+
+        sealedTableBody.innerHTML =
+          sorted
+            .map((r) => {
+              const diffClass =
+                r.diff > 0
+                  ? "diff-positive"
+                  : r.diff < 0
+                    ? "diff-negative"
+                    : "";
+              const diffStr =
+                r.diff != null
+                  ? `<span class="${diffClass}">${r.diff > 0 ? "+" : ""}$${Math.abs(r.diff).toFixed(2)}</span>`
+                  : `<span class="price-null">—</span>`;
+              const pctStr =
+                r.pctDiff != null
+                  ? `<span class="pct-badge ${r.pctDiff > 0 ? "pct-positive" : "pct-negative"}">${r.pctDiff > 0 ? "+" : ""}${r.pctDiff}%</span>`
+                  : `<span class="price-null">—</span>`;
+              const links = [
+                r.regularLink
+                  ? `<a href="${r.regularLink}" target="_blank" class="link-btn">Regular</a>`
+                  : "",
+                r.pokemonCenterLink
+                  ? `<a href="${r.pokemonCenterLink}" target="_blank" class="link-btn">PC</a>`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join("");
+
+              const imgCell = r.image
+                ? `<img src="${r.image}" alt="${r.name}" class="card-img" style="height: 80px;" onerror="this.style.display='none'" />`
+                : `<div class="card-img-placeholder" style="height: 80px;">📦</div>`;
+
+              return `<tr class="sealed-draggable" draggable="true" data-id="${r.id}">
+        <td><span class="drag-handle">⋮⋮</span></td>
+        <td>${imgCell}</td>
+        <td>
+          <div class="card-name">${r.name}</div>
+        </td>
+        <td>${fmt(r.regularPrice)}</td>
+        <td>${fmt(r.pokemonCenterPrice)}</td>
+        <td>${diffStr}</td>
+        <td>${pctStr}</td>
+        <td>${links}</td>
+        <td><button class="btn btn-danger" onclick="deleteSealed(${r.id})">✕</button></td>
+      </tr>`;
+            })
+            .join("") ||
+          `<tr><td colspan="9" class="empty-state"><span class="emoji">📦</span>No sealed products yet — add one above!</td></tr>`;
+
+        sealedCount.textContent = `${sealedProducts.length} product${sealedProducts.length !== 1 ? "s" : ""}`;
+        document
+          .querySelectorAll('th[data-col][data-table="sealed"]')
+          .forEach((th) =>
+            th.classList.toggle("sorted", th.dataset.col === sealedSortCol),
+          );
+
+        initSealedDragAndDrop();
+      }
+
+      // Sealed drag and drop
+      let draggedSealedRow = null;
+
+      function initSealedDragAndDrop() {
+        const rows = document.querySelectorAll('tr.sealed-draggable');
+        rows.forEach(row => {
+          row.addEventListener('dragstart', handleSealedDragStart);
+          row.addEventListener('dragend', handleSealedDragEnd);
+          row.addEventListener('dragover', handleDragOver);
+          row.addEventListener('dragenter', handleSealedDragEnter);
+          row.addEventListener('dragleave', handleDragLeave);
+          row.addEventListener('drop', handleSealedDrop);
+        });
+      }
+
+      function handleSealedDragStart(e) {
+        draggedSealedRow = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+      }
+
+      function handleSealedDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('tr.drag-over').forEach(row => {
+          row.classList.remove('drag-over');
+        });
+        draggedSealedRow = null;
+      }
+
+      function handleSealedDragEnter(e) {
+        e.preventDefault();
+        if (this !== draggedSealedRow) {
+          this.classList.add('drag-over');
+        }
+      }
+
+      async function handleSealedDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        if (this === draggedSealedRow) return;
+
+        const draggedId = parseInt(draggedSealedRow.dataset.id);
+        const targetId = parseInt(this.dataset.id);
+
+        const draggedIndex = sealedProducts.findIndex(p => p.id === draggedId);
+        const targetIndex = sealedProducts.findIndex(p => p.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const [removed] = sealedProducts.splice(draggedIndex, 1);
+        sealedProducts.splice(targetIndex, 0, removed);
+
+        renderSealedTable();
+        await saveSealedOrder();
+      }
+
+      async function saveSealedOrder() {
+        const productIds = sealedProducts.map(p => p.id);
+        try {
+          await fetch('/api/sealed/reorder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productIds })
+          });
+        } catch (err) {
+          console.error('Failed to save sealed order:', err);
+        }
+      }
+
+      async function deleteSealed(id) {
+        await fetch(`/api/sealed/${id}`, { method: "DELETE" });
+        sealedProducts = sealedProducts.filter((p) => p.id !== id);
+        renderSealedTable();
+      }
+
+      // Sealed sorting
+      document.querySelectorAll('th[data-col][data-table="sealed"]').forEach((th) => {
+        th.addEventListener("click", () => {
+          if (sealedSortCol === th.dataset.col) sealedSortDir *= -1;
+          else {
+            sealedSortCol = th.dataset.col;
+            sealedSortDir = 1;
+          }
+          renderSealedTable();
+        });
+      });
+
+      // Add sealed product
+      document.getElementById("addSealedBtn").addEventListener("click", async () => {
+        const name = document.getElementById("addSealedName").value.trim();
+        if (!name) return alert("Product name is required ✦");
+        const res = await fetch("/api/sealed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            regularLink: document.getElementById("addSealedRegularLink").value.trim(),
+            pokemonCenterLink: document.getElementById("addSealedPCLink").value.trim(),
+          }),
+        });
+        const product = await res.json();
+        sealedProducts.push(product);
+        renderSealedTable();
+        ["addSealedName", "addSealedRegularLink", "addSealedPCLink"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+      });
+
+      // Refresh sealed prices
+      document.getElementById("refreshSealedBtn").addEventListener("click", fetchSealedPrices);
+
+      async function fetchSealedPrices() {
+        if (!sealedProducts.length) return alert("No sealed products to fetch yet! 📦");
+        document.getElementById("statusBar").classList.add("visible");
+        document.getElementById("statusText").textContent =
+          `Fetching prices for ${sealedProducts.length} sealed products…`;
+        document.getElementById("progressFill").style.width = "10%";
+
+        const res = await fetch("/api/sealed/prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        sealedProducts = data.results;
+        document.getElementById("statusBar").classList.remove("visible");
+        renderSealedTable();
+      }
 
       loadCards();
+      loadSealed();
     </script>
   </body>
 </html>

@@ -43,6 +43,28 @@ async function initDb() {
     await pool.query(`
       UPDATE cards SET position = id WHERE position = 0 OR position IS NULL
     `);
+
+    // Create sealed products table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sealed_products (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        regular_link TEXT DEFAULT '',
+        pokemon_center_link TEXT DEFAULT '',
+        regular_price DECIMAL(10,2),
+        pokemon_center_price DECIMAL(10,2),
+        diff DECIMAL(10,2),
+        pct_diff DECIMAL(10,2),
+        image TEXT,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Initialize positions for sealed products
+    await pool.query(`
+      UPDATE sealed_products SET position = id WHERE position = 0 OR position IS NULL
+    `);
+
     console.log("Database initialized");
   } catch (e) {
     console.error("Database init error:", e.message);
@@ -131,6 +153,21 @@ function rowToCard(row) {
     jpLink: row.jp_link,
     usPrice: row.us_price ? parseFloat(row.us_price) : null,
     jpPrice: row.jp_price ? parseFloat(row.jp_price) : null,
+    diff: row.diff ? parseFloat(row.diff) : null,
+    pctDiff: row.pct_diff ? parseFloat(row.pct_diff) : null,
+    image: row.image,
+  };
+}
+
+// Helper to convert DB row to sealed product API format
+function rowToSealed(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    regularLink: row.regular_link,
+    pokemonCenterLink: row.pokemon_center_link,
+    regularPrice: row.regular_price ? parseFloat(row.regular_price) : null,
+    pokemonCenterPrice: row.pokemon_center_price ? parseFloat(row.pokemon_center_price) : null,
     diff: row.diff ? parseFloat(row.diff) : null,
     pctDiff: row.pct_diff ? parseFloat(row.pct_diff) : null,
     image: row.image,
@@ -297,6 +334,141 @@ app.post("/api/import", async (req, res) => {
 
     const result = await pool.query("SELECT * FROM cards ORDER BY position ASC");
     res.json({ results: result.rows.map(rowToCard) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ==================== SEALED PRODUCTS API ====================
+
+// GET all sealed products
+app.get("/api/sealed", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sealed_products ORDER BY position ASC");
+    res.json(result.rows.map(rowToSealed));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST add a new sealed product
+app.post("/api/sealed", async (req, res) => {
+  const { name, regularLink, pokemonCenterLink } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  try {
+    const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM sealed_products");
+    const nextPosition = maxPos.rows[0].next_pos;
+
+    const result = await pool.query(
+      `INSERT INTO sealed_products (name, regular_link, pokemon_center_link, position)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [name, regularLink || "", pokemonCenterLink || "", nextPosition]
+    );
+    res.json(rowToSealed(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// DELETE a sealed product
+app.delete("/api/sealed/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM sealed_products WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT reorder sealed products
+app.put("/api/sealed/reorder", async (req, res) => {
+  const { productIds } = req.body;
+  if (!productIds || !Array.isArray(productIds)) {
+    return res.status(400).json({ error: "productIds array is required" });
+  }
+
+  try {
+    for (let i = 0; i < productIds.length; i++) {
+      await pool.query("UPDATE sealed_products SET position = $1 WHERE id = $2", [i, productIds[i]]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST fetch prices for all sealed products
+app.post("/api/sealed/prices", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sealed_products");
+    const products = result.rows;
+
+    for (const product of products) {
+      let regularPrice = null;
+      let pokemonCenterPrice = null;
+      let image = null;
+
+      // Fetch regular page HTML
+      const regularHtml = product.regular_link ? await fetchHtml(product.regular_link) : null;
+      await sleep(800);
+
+      if (regularHtml) {
+        const $ = cheerio.load(regularHtml);
+
+        // Price from regular page
+        const selectors = [
+          "#used_price td.price",
+          "#used_price .price",
+          "td#used_price",
+          ".js-price",
+        ];
+        for (const sel of selectors) {
+          const el = $(sel).first();
+          if (el.length) {
+            const text = el.text().trim().replace(/[^0-9.]/g, "");
+            if (text && parseFloat(text) > 0) {
+              regularPrice = parseFloat(text);
+              console.log(`✓ Regular $${text} - ${product.name}`);
+              break;
+            }
+          }
+        }
+
+        // Image from regular page
+        const img = $('img[itemprop="image"]').first().attr("src");
+        if (img) image = img;
+      }
+
+      // Pokemon Center price
+      pokemonCenterPrice = await scrapePrice(product.pokemon_center_link);
+      await sleep(800);
+
+      const diff =
+        regularPrice != null && pokemonCenterPrice != null
+          ? parseFloat((regularPrice - pokemonCenterPrice).toFixed(2))
+          : null;
+      const pctDiff =
+        regularPrice != null && pokemonCenterPrice != null && pokemonCenterPrice !== 0
+          ? parseFloat((((regularPrice - pokemonCenterPrice) / pokemonCenterPrice) * 100).toFixed(1))
+          : null;
+
+      // Update product in database
+      await pool.query(
+        `UPDATE sealed_products SET regular_price = $1, pokemon_center_price = $2, diff = $3, pct_diff = $4, image = $5 WHERE id = $6`,
+        [regularPrice, pokemonCenterPrice, diff, pctDiff, image, product.id]
+      );
+    }
+
+    // Return updated products
+    const updated = await pool.query("SELECT * FROM sealed_products ORDER BY position ASC");
+    res.json({ results: updated.rows.map(rowToSealed) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Database error" });
