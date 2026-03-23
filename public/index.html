@@ -645,6 +645,64 @@
       .add-form.active {
         display: block;
       }
+
+      /* Gallery styles */
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+        padding: 16px 0;
+      }
+      .gallery-card {
+        position: relative;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .gallery-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+      }
+      .gallery-card-img {
+        width: 100%;
+        aspect-ratio: 3/4;
+        object-fit: contain;
+        background: linear-gradient(135deg, #f8f8fd 0%, #fdf5f5 100%);
+        display: block;
+      }
+      .gallery-card-placeholder {
+        width: 100%;
+        aspect-ratio: 3/4;
+        background: linear-gradient(135deg, #f8f8fd 0%, #fdf5f5 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+      }
+      .gallery-card-price {
+        position: absolute;
+        bottom: 50px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.75);
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+      .gallery-card-name {
+        padding: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background: var(--surface);
+      }
     </style>
   </head>
   <body>
@@ -753,6 +811,7 @@
         <div class="tabs">
           <button class="tab active" data-tab="cards">Cards</button>
           <button class="tab" data-tab="sealed">Sealed</button>
+          <button class="tab" data-tab="collection">Collection</button>
         </div>
 
         <!-- Cards Tab Content -->
@@ -817,6 +876,17 @@
             </table>
           </div>
         </div>
+
+        <!-- Collection Tab Content -->
+        <div class="tab-content tab-panel" id="collectionTab">
+          <div class="results-header" style="margin-top: 16px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>My Collection</h2>
+              <span class="pill pill-pink" id="collectionCount">0 cards</span>
+            </div>
+          </div>
+          <div class="gallery" id="galleryGrid"></div>
+        </div>
       </div>
       <!-- end tabs-container -->
     </div>
@@ -865,6 +935,7 @@
         const res = await fetch("/api/cards");
         cards = await res.json();
         renderTable();
+        renderGallery();
       }
 
       function fmt(val) {
@@ -1029,6 +1100,7 @@
 
         // Re-render the table
         renderTable();
+        renderGallery();
 
         // Save the new order to the server
         await saveCardOrder();
@@ -1051,6 +1123,7 @@
         await fetch(`/api/cards/${id}`, { method: "DELETE" });
         cards = cards.filter((c) => c.id !== id);
         renderTable();
+        renderGallery();
       }
 
       document.querySelectorAll("th[data-col]").forEach((th) => {
@@ -1080,6 +1153,7 @@
         const card = await res.json();
         cards.push(card);
         renderTable();
+        renderGallery();
         ["addName", "addSet", "addUsLink", "addJpLink"].forEach(
           (id) => (document.getElementById(id).value = ""),
         );
@@ -1105,6 +1179,7 @@
         cards = data.results;
         document.getElementById("statusBar").classList.remove("visible");
         renderTable();
+        renderGallery();
       }
 
       document.getElementById("exportBtn").addEventListener("click", () => {
@@ -1177,6 +1252,7 @@
           const data = await res.json();
           cards = data.results;
           renderTable();
+          renderGallery();
           e.target.value = "";
         });
 
@@ -1203,6 +1279,32 @@
       const resultsCount = document.getElementById("resultsCount");
       const sealedTableBody = document.getElementById("sealedTableBody");
       const sealedCount = document.getElementById("sealedCount");
+      const galleryGrid = document.getElementById("galleryGrid");
+      const collectionCount = document.getElementById("collectionCount");
+
+      // ==================== COLLECTION GALLERY ====================
+
+      function renderGallery() {
+        galleryGrid.innerHTML = cards
+          .map((c) => {
+            const imgHtml = c.image
+              ? `<img src="${c.image}" alt="${c.name}" class="gallery-card-img" onerror="this.outerHTML='<div class=\\'gallery-card-placeholder\\'>🃏</div>'" />`
+              : `<div class="gallery-card-placeholder">🃏</div>`;
+            const priceHtml = c.usPrice != null
+              ? `<div class="gallery-card-price">$${c.usPrice.toFixed(2)}</div>`
+              : "";
+            return `
+              <div class="gallery-card">
+                ${imgHtml}
+                ${priceHtml}
+                <div class="gallery-card-name">${c.name}</div>
+              </div>
+            `;
+          })
+          .join("") || `<p style="color: var(--muted); text-align: center; grid-column: 1 / -1;">No cards yet — add some above!</p>`;
+
+        collectionCount.textContent = `${cards.length} card${cards.length !== 1 ? "s" : ""}`;
+      }
 
       // ==================== SEALED PRODUCTS ====================
 
