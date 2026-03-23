@@ -551,6 +551,62 @@ app.delete("/api/collection/:id", async (req, res) => {
   }
 });
 
+// PUT update a collection item
+app.put("/api/collection/:id", async (req, res) => {
+  const { name, set, link } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  try {
+    const result = await pool.query(
+      `UPDATE collection SET name = $1, set_name = $2, link = $3 WHERE id = $4 RETURNING *`,
+      [name, set || "", link || "", req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+    res.json(rowToCollectionItem(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST bulk import collection items
+app.post("/api/collection/import", async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ error: "items array is required" });
+  }
+
+  try {
+    for (const item of items) {
+      if (!item.name) continue;
+
+      // Check if item already exists
+      const existing = await pool.query(
+        "SELECT id FROM collection WHERE name = $1 AND set_name = $2",
+        [item.name, item.set || ""]
+      );
+
+      if (existing.rows.length === 0) {
+        const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM collection");
+        const nextPosition = maxPos.rows[0].next_pos;
+
+        await pool.query(
+          `INSERT INTO collection (name, set_name, link, position) VALUES ($1, $2, $3, $4)`,
+          [item.name, item.set || "", item.link || "", nextPosition]
+        );
+      }
+    }
+
+    const result = await pool.query("SELECT * FROM collection ORDER BY position ASC");
+    res.json({ results: result.rows.map(rowToCollectionItem) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // PUT reorder collection items
 app.put("/api/collection/reorder", async (req, res) => {
   const { itemIds } = req.body;
