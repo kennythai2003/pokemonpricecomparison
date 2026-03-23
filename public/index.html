@@ -357,6 +357,11 @@
         color: #5870d0;
         border: 1px solid #b8c4f0;
       }
+      .pill-mint {
+        background: #e8f5f0;
+        color: #2d8a6e;
+        border: 1px solid #9ed4c1;
+      }
 
       .table-wrap {
         overflow-x: auto;
@@ -927,6 +932,7 @@
             <div style="display: flex; align-items: center; gap: 10px">
               <h2>My Collection</h2>
               <span class="pill pill-pink" id="collectionCount">0 cards</span>
+              <span class="pill pill-mint" id="collectionTotal">$0.00</span>
             </div>
           </div>
           <div class="gallery" id="galleryGrid"></div>
@@ -1338,11 +1344,12 @@
             const priceHtml = c.price != null
               ? `<div class="gallery-card-price">$${c.price.toFixed(2)}</div>`
               : "";
+            const displayName = c.set ? `${c.name} - ${c.set}` : c.name;
             return `
               <div class="gallery-card" data-id="${c.id}">
                 ${imgHtml}
                 ${priceHtml}
-                <div class="gallery-card-name">${c.name}</div>
+                <div class="gallery-card-name" title="${displayName}">${displayName}</div>
                 <button class="btn btn-danger gallery-delete" onclick="deleteCollectionItem(${c.id})">✕</button>
               </div>
             `;
@@ -1350,6 +1357,10 @@
           .join("") || `<p style="color: var(--muted); text-align: center; grid-column: 1 / -1;">No cards in your collection yet — add some above!</p>`;
 
         collectionCount.textContent = `${collection.length} card${collection.length !== 1 ? "s" : ""}`;
+
+        // Calculate total value
+        const total = collection.reduce((sum, c) => sum + (c.price || 0), 0);
+        document.getElementById("collectionTotal").textContent = `$${total.toFixed(2)}`;
       }
 
       async function deleteCollectionItem(id) {
