@@ -262,7 +262,7 @@ app.post("/api/import", async (req, res) => {
 
 // Initialize DB and start server
 initDb().then(() => {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🃏 Card Price Tracker running on port ${PORT}\n`);
   });
 }).catch(e => {
