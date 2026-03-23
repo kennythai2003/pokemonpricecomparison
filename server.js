@@ -630,39 +630,58 @@ app.post("/api/collection/prices", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM collection");
     const items = result.rows;
+    console.log(`📦 Fetching prices for ${items.length} collection items...`);
 
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       let price = null;
       let image = null;
 
-      const html = item.link ? await fetchHtml(item.link) : null;
+      console.log(`[${i + 1}/${items.length}] Processing: ${item.name} | Link: ${item.link || "(no link)"}`);
+
+      if (!item.link) {
+        console.log(`  ⚠ No link provided, skipping price fetch`);
+        continue;
+      }
+
+      const html = await fetchHtml(item.link);
       await sleep(800);
 
-      if (html) {
-        const $ = cheerio.load(html);
+      if (!html) {
+        console.log(`  ✗ Failed to fetch HTML from ${item.link}`);
+        continue;
+      }
 
-        // Price
-        const selectors = [
-          "#used_price td.price",
-          "#used_price .price",
-          "td#used_price",
-          ".js-price",
-        ];
-        for (const sel of selectors) {
-          const el = $(sel).first();
-          if (el.length) {
-            const text = el.text().trim().replace(/[^0-9.]/g, "");
-            if (text && parseFloat(text) > 0) {
-              price = parseFloat(text);
-              console.log(`✓ Collection $${text} - ${item.name}`);
-              break;
-            }
+      const $ = cheerio.load(html);
+
+      // Price
+      const selectors = [
+        "#used_price td.price",
+        "#used_price .price",
+        "td#used_price",
+        ".js-price",
+      ];
+      for (const sel of selectors) {
+        const el = $(sel).first();
+        if (el.length) {
+          const text = el.text().trim().replace(/[^0-9.]/g, "");
+          if (text && parseFloat(text) > 0) {
+            price = parseFloat(text);
+            console.log(`  ✓ Price: $${text}`);
+            break;
           }
         }
+      }
 
-        // Image
-        const img = $('img[itemprop="image"]').first().attr("src");
-        if (img) image = img;
+      if (!price) {
+        console.log(`  ⚠ No price found on page`);
+      }
+
+      // Image
+      const img = $('img[itemprop="image"]').first().attr("src");
+      if (img) {
+        image = img;
+        console.log(`  ✓ Image found`);
       }
 
       // Update item in database
@@ -672,11 +691,13 @@ app.post("/api/collection/prices", async (req, res) => {
       );
     }
 
+    console.log(`✅ Collection price fetch complete`);
+
     // Return updated items
     const updated = await pool.query("SELECT * FROM collection ORDER BY position ASC");
     res.json({ results: updated.rows.map(rowToCollectionItem) });
   } catch (e) {
-    console.error(e);
+    console.error("Collection prices error:", e);
     res.status(500).json({ error: "Database error" });
   }
 });
