@@ -31,8 +31,17 @@ async function initDb() {
         diff DECIMAL(10,2),
         pct_diff DECIMAL(10,2),
         image TEXT,
+        position INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    // Add position column if it doesn't exist (for existing databases)
+    await pool.query(`
+      ALTER TABLE cards ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0
+    `);
+    // Initialize positions for any cards that don't have one
+    await pool.query(`
+      UPDATE cards SET position = id WHERE position = 0 OR position IS NULL
     `);
     console.log("Database initialized");
   } catch (e) {
@@ -131,7 +140,7 @@ function rowToCard(row) {
 // GET all cards
 app.get("/api/cards", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    const result = await pool.query("SELECT * FROM cards ORDER BY position ASC");
     res.json(result.rows.map(rowToCard));
   } catch (e) {
     console.error(e);
@@ -145,11 +154,15 @@ app.post("/api/cards", async (req, res) => {
   if (!name) return res.status(400).json({ error: "Name is required" });
 
   try {
+    // Get the max position to add new card at the end
+    const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM cards");
+    const nextPosition = maxPos.rows[0].next_pos;
+
     const result = await pool.query(
-      `INSERT INTO cards (name, set_name, us_link, jp_link)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO cards (name, set_name, us_link, jp_link, position)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, set || "", usLink || "", jpLink || ""]
+      [name, set || "", usLink || "", jpLink || "", nextPosition]
     );
     res.json(rowToCard(result.rows[0]));
   } catch (e) {
@@ -162,6 +175,25 @@ app.post("/api/cards", async (req, res) => {
 app.delete("/api/cards/:id", async (req, res) => {
   try {
     await pool.query("DELETE FROM cards WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT reorder cards
+app.put("/api/cards/reorder", async (req, res) => {
+  const { cardIds } = req.body; // Array of card IDs in new order
+  if (!cardIds || !Array.isArray(cardIds)) {
+    return res.status(400).json({ error: "cardIds array is required" });
+  }
+
+  try {
+    // Update each card's position based on its index in the array
+    for (let i = 0; i < cardIds.length; i++) {
+      await pool.query("UPDATE cards SET position = $1 WHERE id = $2", [i, cardIds[i]]);
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
@@ -235,7 +267,7 @@ app.post("/api/prices", async (req, res) => {
     }
 
     // Return updated cards
-    const updated = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    const updated = await pool.query("SELECT * FROM cards ORDER BY position ASC");
     res.json({ results: updated.rows.map(rowToCard) });
   } catch (e) {
     console.error(e);
@@ -263,7 +295,7 @@ app.post("/api/import", async (req, res) => {
       }
     }
 
-    const result = await pool.query("SELECT * FROM cards ORDER BY created_at DESC");
+    const result = await pool.query("SELECT * FROM cards ORDER BY position ASC");
     res.json({ results: result.rows.map(rowToCard) });
   } catch (e) {
     console.error(e);

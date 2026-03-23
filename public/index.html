@@ -525,6 +525,31 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Drag and drop styles */
+      tr.draggable {
+        cursor: grab;
+      }
+      tr.draggable:active {
+        cursor: grabbing;
+      }
+      tr.dragging {
+        opacity: 0.5;
+        background: #eaedfd;
+      }
+      tr.drag-over {
+        border-top: 3px solid #5870d0;
+      }
+      .drag-handle {
+        cursor: grab;
+        color: var(--muted);
+        font-size: 1rem;
+        padding: 0 8px;
+        user-select: none;
+      }
+      .drag-handle:hover {
+        color: #5870d0;
+      }
     </style>
   </head>
   <body>
@@ -596,6 +621,7 @@
         <table>
           <thead>
             <tr>
+              <th></th>
               <th></th>
               <th data-col="name">Card</th>
               <th data-col="usPrice">🇺🇸 US Price</th>
@@ -688,7 +714,8 @@
                 targetRange = `<span class="price-val">$${low} - $${high}</span>`;
               }
 
-              return `<tr>
+              return `<tr class="draggable" draggable="true" data-id="${r.id}">
+        <td><span class="drag-handle">⋮⋮</span></td>
         <td>${imgCell}</td>
         <td>
           <div class="card-name">${r.name}</div>
@@ -704,7 +731,7 @@
       </tr>`;
             })
             .join("") ||
-          `<tr><td colspan="9" class="empty-state"><span class="emoji">🌸</span>No cards yet — add one above!</td></tr>`;
+          `<tr><td colspan="10" class="empty-state"><span class="emoji">🌸</span>No cards yet — add one above!</td></tr>`;
 
         resultsCount.textContent = `${cards.length} card${cards.length !== 1 ? "s" : ""}`;
         document
@@ -712,6 +739,94 @@
           .forEach((th) =>
             th.classList.toggle("sorted", th.dataset.col === sortCol),
           );
+
+        // Add drag and drop event listeners
+        initDragAndDrop();
+      }
+
+      let draggedRow = null;
+
+      function initDragAndDrop() {
+        const rows = document.querySelectorAll('tr.draggable');
+
+        rows.forEach(row => {
+          row.addEventListener('dragstart', handleDragStart);
+          row.addEventListener('dragend', handleDragEnd);
+          row.addEventListener('dragover', handleDragOver);
+          row.addEventListener('dragenter', handleDragEnter);
+          row.addEventListener('dragleave', handleDragLeave);
+          row.addEventListener('drop', handleDrop);
+        });
+      }
+
+      function handleDragStart(e) {
+        draggedRow = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+      }
+
+      function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        document.querySelectorAll('tr.drag-over').forEach(row => {
+          row.classList.remove('drag-over');
+        });
+        draggedRow = null;
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      }
+
+      function handleDragEnter(e) {
+        e.preventDefault();
+        if (this !== draggedRow) {
+          this.classList.add('drag-over');
+        }
+      }
+
+      function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+      }
+
+      async function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        if (this === draggedRow) return;
+
+        const draggedId = parseInt(draggedRow.dataset.id);
+        const targetId = parseInt(this.dataset.id);
+
+        // Find indices in the cards array
+        const draggedIndex = cards.findIndex(c => c.id === draggedId);
+        const targetIndex = cards.findIndex(c => c.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        // Reorder the cards array
+        const [removed] = cards.splice(draggedIndex, 1);
+        cards.splice(targetIndex, 0, removed);
+
+        // Re-render the table
+        renderTable();
+
+        // Save the new order to the server
+        await saveCardOrder();
+      }
+
+      async function saveCardOrder() {
+        const cardIds = cards.map(c => c.id);
+        try {
+          await fetch('/api/cards/reorder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardIds })
+          });
+        } catch (err) {
+          console.error('Failed to save card order:', err);
+        }
       }
 
       async function deleteCard(id) {
