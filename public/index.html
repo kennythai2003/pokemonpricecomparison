@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Card Price Tracker ✿</title>
+    <link rel="icon" type="image/png" href="/tab.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&display=swap"
@@ -588,7 +589,7 @@
         z-index: 1;
       }
       .tab.active::after {
-        content: '';
+        content: "";
         position: absolute;
         bottom: -2px;
         left: 0;
@@ -649,9 +650,9 @@
   <body>
     <div class="container">
       <header>
-        <div class="header-badge">✿ Pokemon Card Tracker</div>
-        <h1>Card Prices<em> Compared</em></h1>
-        <p class="subtitle">US vs JP · PriceCharting</p>
+        <div class="header-badge">✿ Price Tracker</div>
+        <h1>Pokemon Prices<em> Compared</em></h1>
+        <p class="subtitle">Prices by PriceCharting</p>
       </header>
 
       <div class="panel">
@@ -659,7 +660,9 @@
 
         <div class="add-type-toggle">
           <button class="add-type-btn active" data-type="card">Card</button>
-          <button class="add-type-btn" data-type="sealed">Sealed Product</button>
+          <button class="add-type-btn" data-type="sealed">
+            Sealed Product
+          </button>
         </div>
 
         <!-- Card Form -->
@@ -667,24 +670,32 @@
           <div class="add-grid">
             <div class="field">
               <label>Card Name ✦</label>
-              <input id="addName" placeholder="e.g. Leafeon ex" />
+              <input id="addName" placeholder="e.g. pikachu" />
             </div>
             <div class="field">
               <label>Set</label>
-              <input id="addSet" placeholder="e.g. Prismatic Evolutions" />
+              <input id="addSet" placeholder="e.g. base set" />
             </div>
             <div class="field">
               <label>US Link</label>
-              <input id="addUsLink" placeholder="https://www.pricecharting.com/..." />
+              <input
+                id="addUsLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
             </div>
             <div class="field">
               <label>JP Link</label>
-              <input id="addJpLink" placeholder="https://www.pricecharting.com/..." />
+              <input
+                id="addJpLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
             </div>
           </div>
           <div class="actions">
             <button class="btn btn-primary" id="addBtn">✦ Add Card</button>
-            <button class="btn btn-mint" id="refreshAllBtn">↻ Refresh All Prices</button>
+            <button class="btn btn-mint" id="refreshAllBtn">
+              ↻ Refresh All Prices
+            </button>
             <button class="btn btn-ghost" id="exportBtn">↓ Export CSV</button>
           </div>
           <div class="import-row">
@@ -698,23 +709,33 @@
 
         <!-- Sealed Form -->
         <div class="add-form" id="sealedForm">
-          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr)">
             <div class="field">
               <label>Product Name ✦</label>
               <input id="addSealedName" placeholder="e.g. Elite Trainer Box" />
             </div>
             <div class="field">
               <label>Regular Link</label>
-              <input id="addSealedRegularLink" placeholder="https://www.pricecharting.com/..." />
+              <input
+                id="addSealedRegularLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
             </div>
             <div class="field">
               <label>Pokemon Center Link</label>
-              <input id="addSealedPCLink" placeholder="https://www.pricecharting.com/..." />
+              <input
+                id="addSealedPCLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
             </div>
           </div>
           <div class="actions">
-            <button class="btn btn-primary" id="addSealedBtn">✦ Add Product</button>
-            <button class="btn btn-mint" id="refreshSealedBtn">↻ Refresh All Prices</button>
+            <button class="btn btn-primary" id="addSealedBtn">
+              ✦ Add Product
+            </button>
+            <button class="btn btn-mint" id="refreshSealedBtn">
+              ↻ Refresh All Prices
+            </button>
           </div>
         </div>
       </div>
@@ -736,63 +757,68 @@
 
         <!-- Cards Tab Content -->
         <div class="tab-content active tab-panel" id="cardsTab">
-        <div class="results-header" style="margin-top: 16px;">
-          <div style="display: flex; align-items: center; gap: 10px">
-            <h2>Your Collection</h2>
-            <span class="pill pill-pink" id="resultsCount">0 cards</span>
+          <div class="results-header" style="margin-top: 16px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>Your Collection</h2>
+              <span class="pill pill-pink" id="resultsCount">0 cards</span>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th></th>
+                  <th data-col="name" data-table="cards">Card</th>
+                  <th data-col="usPrice" data-table="cards">🇺🇸 US Price</th>
+                  <th data-col="jpPrice" data-table="cards">🇯🇵 JP Price</th>
+                  <th data-col="diff" data-table="cards">Difference</th>
+                  <th data-col="pctDiff" data-table="cards">% Diff</th>
+                  <th>Target Range</th>
+                  <th>Links</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
           </div>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th></th>
-                <th></th>
-                <th data-col="name" data-table="cards">Card</th>
-                <th data-col="usPrice" data-table="cards">🇺🇸 US Price</th>
-                <th data-col="jpPrice" data-table="cards">🇯🇵 JP Price</th>
-                <th data-col="diff" data-table="cards">Difference</th>
-                <th data-col="pctDiff" data-table="cards">% Diff</th>
-                <th>Target Range</th>
-                <th>Links</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-          </table>
-        </div>
-      </div>
+        <!-- Sealed Tab Content -->
+        <div class="tab-content tab-panel" id="sealedTab">
+          <div class="results-header" style="margin-top: 16px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>Sealed Products</h2>
+              <span class="pill pill-pink" id="sealedCount">0 products</span>
+            </div>
+          </div>
 
-      <!-- Sealed Tab Content -->
-      <div class="tab-content tab-panel" id="sealedTab">
-        <div class="results-header" style="margin-top: 16px;">
-          <div style="display: flex; align-items: center; gap: 10px">
-            <h2>Sealed Products</h2>
-            <span class="pill pill-pink" id="sealedCount">0 products</span>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th></th>
+                  <th data-col="name" data-table="sealed">Product</th>
+                  <th data-col="regularPrice" data-table="sealed">
+                    Regular Price
+                  </th>
+                  <th data-col="pokemonCenterPrice" data-table="sealed">
+                    Pokemon Center
+                  </th>
+                  <th data-col="diff" data-table="sealed">Difference</th>
+                  <th data-table="sealed">85%</th>
+                  <th>Links</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="sealedTableBody"></tbody>
+            </table>
           </div>
         </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th></th>
-                <th></th>
-                <th data-col="name" data-table="sealed">Product</th>
-                <th data-col="regularPrice" data-table="sealed">Regular Price</th>
-                <th data-col="pokemonCenterPrice" data-table="sealed">Pokemon Center</th>
-                <th data-col="diff" data-table="sealed">Difference</th>
-                <th data-col="pctDiff" data-table="sealed">% Diff</th>
-                <th>Links</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="sealedTableBody"></tbody>
-          </table>
-        </div>
       </div>
-      </div><!-- end tabs-container -->
+      <!-- end tabs-container -->
     </div>
 
     <script>
@@ -804,22 +830,34 @@
         sealedSortDir = 1;
 
       // Tab switching
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          tab.classList.add('active');
-          document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("active"));
+          document
+            .querySelectorAll(".tab-content")
+            .forEach((c) => c.classList.remove("active"));
+          tab.classList.add("active");
+          document
+            .getElementById(tab.dataset.tab + "Tab")
+            .classList.add("active");
         });
       });
 
       // Add type toggle (Card vs Sealed)
-      document.querySelectorAll('.add-type-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.add-type-btn').forEach(b => b.classList.remove('active'));
-          document.querySelectorAll('.add-form').forEach(f => f.classList.remove('active'));
-          btn.classList.add('active');
-          document.getElementById(btn.dataset.type + 'Form').classList.add('active');
+      document.querySelectorAll(".add-type-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".add-type-btn")
+            .forEach((b) => b.classList.remove("active"));
+          document
+            .querySelectorAll(".add-form")
+            .forEach((f) => f.classList.remove("active"));
+          btn.classList.add("active");
+          document
+            .getElementById(btn.dataset.type + "Form")
+            .classList.add("active");
         });
       });
 
@@ -927,52 +965,52 @@
       let draggedRow = null;
 
       function initDragAndDrop() {
-        const rows = document.querySelectorAll('tr.draggable');
+        const rows = document.querySelectorAll("tr.draggable");
 
-        rows.forEach(row => {
-          row.addEventListener('dragstart', handleDragStart);
-          row.addEventListener('dragend', handleDragEnd);
-          row.addEventListener('dragover', handleDragOver);
-          row.addEventListener('dragenter', handleDragEnter);
-          row.addEventListener('dragleave', handleDragLeave);
-          row.addEventListener('drop', handleDrop);
+        rows.forEach((row) => {
+          row.addEventListener("dragstart", handleDragStart);
+          row.addEventListener("dragend", handleDragEnd);
+          row.addEventListener("dragover", handleDragOver);
+          row.addEventListener("dragenter", handleDragEnter);
+          row.addEventListener("dragleave", handleDragLeave);
+          row.addEventListener("drop", handleDrop);
         });
       }
 
       function handleDragStart(e) {
         draggedRow = this;
-        this.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.dataset.id);
       }
 
       function handleDragEnd(e) {
-        this.classList.remove('dragging');
-        document.querySelectorAll('tr.drag-over').forEach(row => {
-          row.classList.remove('drag-over');
+        this.classList.remove("dragging");
+        document.querySelectorAll("tr.drag-over").forEach((row) => {
+          row.classList.remove("drag-over");
         });
         draggedRow = null;
       }
 
       function handleDragOver(e) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+        e.dataTransfer.dropEffect = "move";
       }
 
       function handleDragEnter(e) {
         e.preventDefault();
         if (this !== draggedRow) {
-          this.classList.add('drag-over');
+          this.classList.add("drag-over");
         }
       }
 
       function handleDragLeave(e) {
-        this.classList.remove('drag-over');
+        this.classList.remove("drag-over");
       }
 
       async function handleDrop(e) {
         e.preventDefault();
-        this.classList.remove('drag-over');
+        this.classList.remove("drag-over");
 
         if (this === draggedRow) return;
 
@@ -980,8 +1018,8 @@
         const targetId = parseInt(this.dataset.id);
 
         // Find indices in the cards array
-        const draggedIndex = cards.findIndex(c => c.id === draggedId);
-        const targetIndex = cards.findIndex(c => c.id === targetId);
+        const draggedIndex = cards.findIndex((c) => c.id === draggedId);
+        const targetIndex = cards.findIndex((c) => c.id === targetId);
 
         if (draggedIndex === -1 || targetIndex === -1) return;
 
@@ -997,15 +1035,15 @@
       }
 
       async function saveCardOrder() {
-        const cardIds = cards.map(c => c.id);
+        const cardIds = cards.map((c) => c.id);
         try {
-          await fetch('/api/cards/reorder', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cardIds })
+          await fetch("/api/cards/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cardIds }),
           });
         } catch (err) {
-          console.error('Failed to save card order:', err);
+          console.error("Failed to save card order:", err);
         }
       }
 
@@ -1198,9 +1236,9 @@
                 r.diff != null
                   ? `<span class="${diffClass}">${r.diff > 0 ? "+" : ""}$${Math.abs(r.diff).toFixed(2)}</span>`
                   : `<span class="price-null">—</span>`;
-              const pctStr =
-                r.pctDiff != null
-                  ? `<span class="pct-badge ${r.pctDiff > 0 ? "pct-positive" : "pct-negative"}">${r.pctDiff > 0 ? "+" : ""}${r.pctDiff}%</span>`
+              const eightyFivePercent =
+                r.regularPrice != null
+                  ? `<span class="pct-badge">$${(r.regularPrice * 0.85).toFixed(2)}</span>`
                   : `<span class="price-null">—</span>`;
               const links = [
                 r.regularLink
@@ -1226,7 +1264,7 @@
         <td>${fmt(r.regularPrice)}</td>
         <td>${fmt(r.pokemonCenterPrice)}</td>
         <td>${diffStr}</td>
-        <td>${pctStr}</td>
+        <td>${eightyFivePercent}</td>
         <td>${links}</td>
         <td><button class="btn btn-danger" onclick="deleteSealed(${r.id})">✕</button></td>
       </tr>`;
@@ -1248,28 +1286,28 @@
       let draggedSealedRow = null;
 
       function initSealedDragAndDrop() {
-        const rows = document.querySelectorAll('tr.sealed-draggable');
-        rows.forEach(row => {
-          row.addEventListener('dragstart', handleSealedDragStart);
-          row.addEventListener('dragend', handleSealedDragEnd);
-          row.addEventListener('dragover', handleDragOver);
-          row.addEventListener('dragenter', handleSealedDragEnter);
-          row.addEventListener('dragleave', handleDragLeave);
-          row.addEventListener('drop', handleSealedDrop);
+        const rows = document.querySelectorAll("tr.sealed-draggable");
+        rows.forEach((row) => {
+          row.addEventListener("dragstart", handleSealedDragStart);
+          row.addEventListener("dragend", handleSealedDragEnd);
+          row.addEventListener("dragover", handleDragOver);
+          row.addEventListener("dragenter", handleSealedDragEnter);
+          row.addEventListener("dragleave", handleDragLeave);
+          row.addEventListener("drop", handleSealedDrop);
         });
       }
 
       function handleSealedDragStart(e) {
         draggedSealedRow = this;
-        this.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', this.dataset.id);
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.dataset.id);
       }
 
       function handleSealedDragEnd(e) {
-        this.classList.remove('dragging');
-        document.querySelectorAll('tr.drag-over').forEach(row => {
-          row.classList.remove('drag-over');
+        this.classList.remove("dragging");
+        document.querySelectorAll("tr.drag-over").forEach((row) => {
+          row.classList.remove("drag-over");
         });
         draggedSealedRow = null;
       }
@@ -1277,20 +1315,22 @@
       function handleSealedDragEnter(e) {
         e.preventDefault();
         if (this !== draggedSealedRow) {
-          this.classList.add('drag-over');
+          this.classList.add("drag-over");
         }
       }
 
       async function handleSealedDrop(e) {
         e.preventDefault();
-        this.classList.remove('drag-over');
+        this.classList.remove("drag-over");
         if (this === draggedSealedRow) return;
 
         const draggedId = parseInt(draggedSealedRow.dataset.id);
         const targetId = parseInt(this.dataset.id);
 
-        const draggedIndex = sealedProducts.findIndex(p => p.id === draggedId);
-        const targetIndex = sealedProducts.findIndex(p => p.id === targetId);
+        const draggedIndex = sealedProducts.findIndex(
+          (p) => p.id === draggedId,
+        );
+        const targetIndex = sealedProducts.findIndex((p) => p.id === targetId);
 
         if (draggedIndex === -1 || targetIndex === -1) return;
 
@@ -1302,15 +1342,15 @@
       }
 
       async function saveSealedOrder() {
-        const productIds = sealedProducts.map(p => p.id);
+        const productIds = sealedProducts.map((p) => p.id);
         try {
-          await fetch('/api/sealed/reorder', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ productIds })
+          await fetch("/api/sealed/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productIds }),
           });
         } catch (err) {
-          console.error('Failed to save sealed order:', err);
+          console.error("Failed to save sealed order:", err);
         }
       }
 
@@ -1321,43 +1361,54 @@
       }
 
       // Sealed sorting
-      document.querySelectorAll('th[data-col][data-table="sealed"]').forEach((th) => {
-        th.addEventListener("click", () => {
-          if (sealedSortCol === th.dataset.col) sealedSortDir *= -1;
-          else {
-            sealedSortCol = th.dataset.col;
-            sealedSortDir = 1;
-          }
-          renderSealedTable();
+      document
+        .querySelectorAll('th[data-col][data-table="sealed"]')
+        .forEach((th) => {
+          th.addEventListener("click", () => {
+            if (sealedSortCol === th.dataset.col) sealedSortDir *= -1;
+            else {
+              sealedSortCol = th.dataset.col;
+              sealedSortDir = 1;
+            }
+            renderSealedTable();
+          });
         });
-      });
 
       // Add sealed product
-      document.getElementById("addSealedBtn").addEventListener("click", async () => {
-        const name = document.getElementById("addSealedName").value.trim();
-        if (!name) return alert("Product name is required ✦");
-        const res = await fetch("/api/sealed", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            regularLink: document.getElementById("addSealedRegularLink").value.trim(),
-            pokemonCenterLink: document.getElementById("addSealedPCLink").value.trim(),
-          }),
+      document
+        .getElementById("addSealedBtn")
+        .addEventListener("click", async () => {
+          const name = document.getElementById("addSealedName").value.trim();
+          if (!name) return alert("Product name is required ✦");
+          const res = await fetch("/api/sealed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name,
+              regularLink: document
+                .getElementById("addSealedRegularLink")
+                .value.trim(),
+              pokemonCenterLink: document
+                .getElementById("addSealedPCLink")
+                .value.trim(),
+            }),
+          });
+          const product = await res.json();
+          sealedProducts.push(product);
+          renderSealedTable();
+          ["addSealedName", "addSealedRegularLink", "addSealedPCLink"].forEach(
+            (id) => (document.getElementById(id).value = ""),
+          );
         });
-        const product = await res.json();
-        sealedProducts.push(product);
-        renderSealedTable();
-        ["addSealedName", "addSealedRegularLink", "addSealedPCLink"].forEach(
-          (id) => (document.getElementById(id).value = ""),
-        );
-      });
 
       // Refresh sealed prices
-      document.getElementById("refreshSealedBtn").addEventListener("click", fetchSealedPrices);
+      document
+        .getElementById("refreshSealedBtn")
+        .addEventListener("click", fetchSealedPrices);
 
       async function fetchSealedPrices() {
-        if (!sealedProducts.length) return alert("No sealed products to fetch yet! 📦");
+        if (!sealedProducts.length)
+          return alert("No sealed products to fetch yet! 📦");
         document.getElementById("statusBar").classList.add("visible");
         document.getElementById("statusText").textContent =
           `Fetching prices for ${sealedProducts.length} sealed products…`;
