@@ -557,6 +557,33 @@
         color: #5870d0;
       }
 
+      /* Got it row styles */
+      tr.got-it {
+        background: #fde8e8 !important;
+      }
+      tr.got-it:hover {
+        background: #fcdcdc !important;
+      }
+      .got-it-btn {
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 99px;
+        border: 1.5px solid var(--border);
+        background: var(--surface2);
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .got-it-btn:hover {
+        border-color: #98aee8;
+        color: #5870d0;
+      }
+      .got-it-btn.active {
+        background: linear-gradient(135deg, #f5a8a8 0%, #e87878 100%);
+        color: white;
+        border-color: transparent;
+      }
+
       /* Tab styles */
       .tabs-container {
         max-width: 1400px;
@@ -1211,7 +1238,11 @@
                 targetRange = `<span class="price-val">$${low} - $${high}</span>`;
               }
 
-              return `<tr class="draggable" draggable="true" data-id="${r.id}">
+              const gotItClass = r.gotIt ? "got-it" : "";
+              const gotItBtnClass = r.gotIt ? "got-it-btn active" : "got-it-btn";
+              const gotItText = r.gotIt ? "✓ Got it" : "Got it?";
+
+              return `<tr class="draggable ${gotItClass}" draggable="true" data-id="${r.id}">
         <td><span class="drag-handle">⋮⋮</span></td>
         <td>${imgCell}</td>
         <td>
@@ -1224,7 +1255,10 @@
         <td>${pctStr}</td>
         <td>${targetRange}</td>
         <td>${links}</td>
-        <td><button class="btn btn-danger" onclick="deleteCard(${r.id})">✕</button></td>
+        <td>
+          <button class="${gotItBtnClass}" onclick="toggleGotIt(${r.id})">${gotItText}</button>
+          <button class="btn btn-danger" onclick="deleteCard(${r.id})" style="margin-left: 4px;">✕</button>
+        </td>
       </tr>`;
             })
             .join("") ||
@@ -1329,6 +1363,14 @@
       async function deleteCard(id) {
         await fetch(`/api/cards/${id}`, { method: "DELETE" });
         cards = cards.filter((c) => c.id !== id);
+        renderTable();
+      }
+
+      async function toggleGotIt(id) {
+        const res = await fetch(`/api/cards/${id}/got-it`, { method: "PUT" });
+        const updated = await res.json();
+        const idx = cards.findIndex((c) => c.id === id);
+        if (idx !== -1) cards[idx] = updated;
         renderTable();
       }
 

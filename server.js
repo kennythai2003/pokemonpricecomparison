@@ -43,6 +43,10 @@ async function initDb() {
     await pool.query(`
       UPDATE cards SET position = id WHERE position = 0 OR position IS NULL
     `);
+    // Add got_it column if it doesn't exist
+    await pool.query(`
+      ALTER TABLE cards ADD COLUMN IF NOT EXISTS got_it BOOLEAN DEFAULT FALSE
+    `);
 
     // Create sealed products table
     await pool.query(`
@@ -192,6 +196,7 @@ function rowToCard(row) {
     diff: row.diff ? parseFloat(row.diff) : null,
     pctDiff: row.pct_diff ? parseFloat(row.pct_diff) : null,
     image: row.image,
+    gotIt: row.got_it || false,
   };
 }
 
@@ -237,6 +242,23 @@ app.post("/api/cards", async (req, res) => {
        RETURNING *`,
       [name, set || "", usLink || "", jpLink || "", nextPosition]
     );
+    res.json(rowToCard(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT toggle got_it status
+app.put("/api/cards/:id/got-it", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE cards SET got_it = NOT got_it WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Card not found" });
+    }
     res.json(rowToCard(result.rows[0]));
   } catch (e) {
     console.error(e);
