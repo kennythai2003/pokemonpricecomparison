@@ -738,6 +738,21 @@
       .gallery-edit:hover {
         background: #4a5fc0;
       }
+      .gallery-card.draggable {
+        cursor: grab;
+      }
+      .gallery-card.draggable:active {
+        cursor: grabbing;
+      }
+      .gallery-card.dragging {
+        opacity: 0.5;
+        transform: scale(1.02);
+      }
+      .gallery-card.drag-over {
+        border-color: #5870d0;
+        border-width: 2px;
+        box-shadow: 0 0 10px rgba(88, 112, 208, 0.3);
+      }
 
       /* Modal styles */
       .modal-overlay {
@@ -798,7 +813,10 @@
             Sealed Product
           </button>
           <button class="add-type-btn" data-type="collection">
-            Collection
+            Card Collection
+          </button>
+          <button class="add-type-btn" data-type="sealedCollection">
+            Sealed Collection
           </button>
         </div>
 
@@ -911,6 +929,42 @@
             </div>
           </div>
         </div>
+
+        <!-- Sealed Collection Form -->
+        <div class="add-form" id="sealedCollectionForm">
+          <div class="add-grid" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="field">
+              <label>Product Name ✦</label>
+              <input id="addSealedCollectionName" placeholder="e.g. Elite Trainer Box" />
+            </div>
+            <div class="field">
+              <label>Set</label>
+              <input id="addSealedCollectionSet" placeholder="e.g. Surging Sparks" />
+            </div>
+            <div class="field">
+              <label>Link</label>
+              <input
+                id="addSealedCollectionLink"
+                placeholder="https://www.pricecharting.com/..."
+              />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" id="addSealedCollectionBtn">
+              ✦ Add to Collection
+            </button>
+            <button class="btn btn-mint" id="refreshSealedCollectionBtn">
+              ↻ Refresh All Prices
+            </button>
+          </div>
+          <div class="import-row">
+            <span>Bulk import:</span>
+            <div class="upload-zone">
+              📂 Upload CSV (Name, Set, Link)
+              <input type="file" id="sealedCollectionCsvInput" accept=".csv" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="status-bar" id="statusBar">
@@ -926,7 +980,8 @@
         <div class="tabs">
           <button class="tab active" data-tab="cards">Wishlist</button>
           <button class="tab" data-tab="sealed">Sealed</button>
-          <button class="tab" data-tab="collection">Collection</button>
+          <button class="tab" data-tab="collection">Card Collection</button>
+          <button class="tab" data-tab="sealedCollection">Sealed Collection</button>
         </div>
 
         <!-- Cards Tab Content -->
@@ -996,12 +1051,24 @@
         <div class="tab-content tab-panel" id="collectionTab">
           <div class="results-header" style="margin-top: 16px">
             <div style="display: flex; align-items: center; gap: 10px">
-              <h2>My Collection</h2>
+              <h2>My Card Collection</h2>
               <span class="pill pill-pink" id="collectionCount">0 cards</span>
               <span class="pill pill-mint" id="collectionTotal">$0.00</span>
             </div>
           </div>
           <div class="gallery" id="galleryGrid"></div>
+        </div>
+
+        <!-- Sealed Collection Tab Content -->
+        <div class="tab-content tab-panel" id="sealedCollectionTab">
+          <div class="results-header" style="margin-top: 16px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>My Sealed Collection</h2>
+              <span class="pill pill-pink" id="sealedCollectionCount">0 products</span>
+              <span class="pill pill-mint" id="sealedCollectionTotal">$0.00</span>
+            </div>
+          </div>
+          <div class="gallery" id="sealedGalleryGrid"></div>
         </div>
       </div>
       <!-- end tabs-container -->
@@ -1035,6 +1102,7 @@
       let cards = [];
       let sealedProducts = [];
       let collection = [];
+      let sealedCollection = [];
       let sortCol = null,
         sortDir = 1;
       let sealedSortCol = null,
@@ -1436,7 +1504,7 @@
               : "";
             const displayName = c.set ? `${c.name} - ${c.set}` : c.name;
             return `
-              <div class="gallery-card" data-id="${c.id}">
+              <div class="gallery-card draggable" draggable="true" data-id="${c.id}">
                 ${imgHtml}
                 ${priceHtml}
                 <div class="gallery-card-name" title="${displayName}">${displayName}</div>
@@ -1452,6 +1520,89 @@
         // Calculate total value
         const total = collection.reduce((sum, c) => sum + (c.price || 0), 0);
         document.getElementById("collectionTotal").textContent = `$${total.toFixed(2)}`;
+
+        // Initialize drag and drop for collection gallery
+        initCollectionDragAndDrop();
+      }
+
+      // Collection gallery drag and drop
+      let draggedGalleryCard = null;
+
+      function initCollectionDragAndDrop() {
+        const cards = document.querySelectorAll("#galleryGrid .gallery-card.draggable");
+        cards.forEach((card) => {
+          card.addEventListener("dragstart", handleGalleryDragStart);
+          card.addEventListener("dragend", handleGalleryDragEnd);
+          card.addEventListener("dragover", handleGalleryDragOver);
+          card.addEventListener("dragenter", handleGalleryDragEnter);
+          card.addEventListener("dragleave", handleGalleryDragLeave);
+          card.addEventListener("drop", handleGalleryDrop);
+        });
+      }
+
+      function handleGalleryDragStart(e) {
+        draggedGalleryCard = this;
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.dataset.id);
+      }
+
+      function handleGalleryDragEnd(e) {
+        this.classList.remove("dragging");
+        document.querySelectorAll(".gallery-card.drag-over").forEach((card) => {
+          card.classList.remove("drag-over");
+        });
+        draggedGalleryCard = null;
+      }
+
+      function handleGalleryDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }
+
+      function handleGalleryDragEnter(e) {
+        e.preventDefault();
+        if (this !== draggedGalleryCard) {
+          this.classList.add("drag-over");
+        }
+      }
+
+      function handleGalleryDragLeave(e) {
+        this.classList.remove("drag-over");
+      }
+
+      async function handleGalleryDrop(e) {
+        e.preventDefault();
+        this.classList.remove("drag-over");
+
+        if (this === draggedGalleryCard) return;
+
+        const draggedId = parseInt(draggedGalleryCard.dataset.id);
+        const targetId = parseInt(this.dataset.id);
+
+        const draggedIndex = collection.findIndex((c) => c.id === draggedId);
+        const targetIndex = collection.findIndex((c) => c.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const [removed] = collection.splice(draggedIndex, 1);
+        collection.splice(targetIndex, 0, removed);
+
+        renderGallery();
+        await saveCollectionOrder();
+      }
+
+      async function saveCollectionOrder() {
+        const itemIds = collection.map((c) => c.id);
+        try {
+          await fetch("/api/collection/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemIds }),
+          });
+        } catch (err) {
+          console.error("Failed to save collection order:", err);
+        }
       }
 
       // Edit modal functions
@@ -1459,9 +1610,11 @@
         const item = collection.find(c => c.id === id);
         if (!item) return;
         document.getElementById("editItemId").value = id;
+        document.getElementById("editItemId").dataset.type = "card";
         document.getElementById("editName").value = item.name;
         document.getElementById("editSet").value = item.set || "";
         document.getElementById("editLink").value = item.link || "";
+        document.getElementById("editModal").querySelector(".modal-title").textContent = "Edit Collection Item";
         document.getElementById("editModal").classList.add("visible");
       }
 
@@ -1471,10 +1624,12 @@
 
       async function saveEditItem() {
         const id = document.getElementById("editItemId").value;
+        const itemType = document.getElementById("editItemId").dataset.type;
         const name = document.getElementById("editName").value.trim();
-        if (!name) return alert("Card name is required ✦");
+        if (!name) return alert("Name is required ✦");
 
-        const res = await fetch(`/api/collection/${id}`, {
+        const apiPath = itemType === "sealed" ? "/api/sealed-collection" : "/api/collection";
+        const res = await fetch(`${apiPath}/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1484,9 +1639,16 @@
           }),
         });
         const updated = await res.json();
-        const idx = collection.findIndex(c => c.id === parseInt(id));
-        if (idx !== -1) collection[idx] = updated;
-        renderGallery();
+
+        if (itemType === "sealed") {
+          const idx = sealedCollection.findIndex(c => c.id === parseInt(id));
+          if (idx !== -1) sealedCollection[idx] = updated;
+          renderSealedGallery();
+        } else {
+          const idx = collection.findIndex(c => c.id === parseInt(id));
+          if (idx !== -1) collection[idx] = updated;
+          renderGallery();
+        }
         closeEditModal();
       }
 
@@ -1795,9 +1957,221 @@
         renderSealedTable();
       }
 
+      // ==================== SEALED COLLECTION ====================
+
+      const sealedGalleryGrid = document.getElementById("sealedGalleryGrid");
+      const sealedCollectionCount = document.getElementById("sealedCollectionCount");
+
+      async function loadSealedCollection() {
+        const res = await fetch("/api/sealed-collection");
+        sealedCollection = await res.json();
+        renderSealedGallery();
+      }
+
+      function renderSealedGallery() {
+        sealedGalleryGrid.innerHTML = sealedCollection
+          .map((c) => {
+            const imgHtml = c.image
+              ? `<img src="${c.image}" alt="${c.name}" class="gallery-card-img" onerror="this.outerHTML='<div class=\\'gallery-card-placeholder\\'>📦</div>'" />`
+              : `<div class="gallery-card-placeholder">📦</div>`;
+            const priceHtml = c.price != null
+              ? `<div class="gallery-card-price">$${c.price.toFixed(2)}</div>`
+              : "";
+            const displayName = c.set ? `${c.name} - ${c.set}` : c.name;
+            return `
+              <div class="gallery-card draggable" draggable="true" data-id="${c.id}">
+                ${imgHtml}
+                ${priceHtml}
+                <div class="gallery-card-name" title="${displayName}">${displayName}</div>
+                <button class="gallery-edit" onclick="openSealedEditModal(${c.id})">✎</button>
+                <button class="btn btn-danger gallery-delete" onclick="deleteSealedCollectionItem(${c.id})">✕</button>
+              </div>
+            `;
+          })
+          .join("") || `<p style="color: var(--muted); text-align: center; grid-column: 1 / -1;">No sealed products in your collection yet — add some above!</p>`;
+
+        sealedCollectionCount.textContent = `${sealedCollection.length} product${sealedCollection.length !== 1 ? "s" : ""}`;
+
+        // Calculate total value
+        const total = sealedCollection.reduce((sum, c) => sum + (c.price || 0), 0);
+        document.getElementById("sealedCollectionTotal").textContent = `$${total.toFixed(2)}`;
+
+        // Initialize drag and drop for sealed collection gallery
+        initSealedCollectionDragAndDrop();
+      }
+
+      // Sealed collection gallery drag and drop
+      let draggedSealedGalleryCard = null;
+
+      function initSealedCollectionDragAndDrop() {
+        const cards = document.querySelectorAll("#sealedGalleryGrid .gallery-card.draggable");
+        cards.forEach((card) => {
+          card.addEventListener("dragstart", handleSealedGalleryDragStart);
+          card.addEventListener("dragend", handleSealedGalleryDragEnd);
+          card.addEventListener("dragover", handleGalleryDragOver);
+          card.addEventListener("dragenter", handleSealedGalleryDragEnter);
+          card.addEventListener("dragleave", handleGalleryDragLeave);
+          card.addEventListener("drop", handleSealedGalleryDrop);
+        });
+      }
+
+      function handleSealedGalleryDragStart(e) {
+        draggedSealedGalleryCard = this;
+        this.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", this.dataset.id);
+      }
+
+      function handleSealedGalleryDragEnd(e) {
+        this.classList.remove("dragging");
+        document.querySelectorAll(".gallery-card.drag-over").forEach((card) => {
+          card.classList.remove("drag-over");
+        });
+        draggedSealedGalleryCard = null;
+      }
+
+      function handleSealedGalleryDragEnter(e) {
+        e.preventDefault();
+        if (this !== draggedSealedGalleryCard) {
+          this.classList.add("drag-over");
+        }
+      }
+
+      async function handleSealedGalleryDrop(e) {
+        e.preventDefault();
+        this.classList.remove("drag-over");
+
+        if (this === draggedSealedGalleryCard) return;
+
+        const draggedId = parseInt(draggedSealedGalleryCard.dataset.id);
+        const targetId = parseInt(this.dataset.id);
+
+        const draggedIndex = sealedCollection.findIndex((c) => c.id === draggedId);
+        const targetIndex = sealedCollection.findIndex((c) => c.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const [removed] = sealedCollection.splice(draggedIndex, 1);
+        sealedCollection.splice(targetIndex, 0, removed);
+
+        renderSealedGallery();
+        await saveSealedCollectionOrder();
+      }
+
+      async function saveSealedCollectionOrder() {
+        const itemIds = sealedCollection.map((c) => c.id);
+        try {
+          await fetch("/api/sealed-collection/reorder", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemIds }),
+          });
+        } catch (err) {
+          console.error("Failed to save sealed collection order:", err);
+        }
+      }
+
+      // Edit modal functions for sealed collection
+      function openSealedEditModal(id) {
+        const item = sealedCollection.find(c => c.id === id);
+        if (!item) return;
+        document.getElementById("editItemId").value = id;
+        document.getElementById("editItemId").dataset.type = "sealed";
+        document.getElementById("editName").value = item.name;
+        document.getElementById("editSet").value = item.set || "";
+        document.getElementById("editLink").value = item.link || "";
+        document.getElementById("editModal").querySelector(".modal-title").textContent = "Edit Sealed Collection Item";
+        document.getElementById("editModal").classList.add("visible");
+      }
+
+      async function deleteSealedCollectionItem(id) {
+        await fetch(`/api/sealed-collection/${id}`, { method: "DELETE" });
+        sealedCollection = sealedCollection.filter((c) => c.id !== id);
+        renderSealedGallery();
+      }
+
+      // Add sealed collection item
+      document.getElementById("addSealedCollectionBtn").addEventListener("click", async () => {
+        const name = document.getElementById("addSealedCollectionName").value.trim();
+        if (!name) return alert("Product name is required ✦");
+        const res = await fetch("/api/sealed-collection", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            set: document.getElementById("addSealedCollectionSet").value.trim(),
+            link: document.getElementById("addSealedCollectionLink").value.trim(),
+          }),
+        });
+        const item = await res.json();
+        sealedCollection.push(item);
+        renderSealedGallery();
+        ["addSealedCollectionName", "addSealedCollectionSet", "addSealedCollectionLink"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+      });
+
+      // Refresh sealed collection prices
+      document.getElementById("refreshSealedCollectionBtn").addEventListener("click", fetchSealedCollectionPrices);
+
+      async function fetchSealedCollectionPrices() {
+        if (!sealedCollection.length) return alert("No products in sealed collection yet! 📦");
+        document.getElementById("statusBar").classList.add("visible");
+        document.getElementById("statusText").textContent =
+          `Fetching prices for ${sealedCollection.length} sealed collection items…`;
+        document.getElementById("progressFill").style.width = "10%";
+
+        const res = await fetch("/api/sealed-collection/prices", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        sealedCollection = data.results;
+        document.getElementById("statusBar").classList.remove("visible");
+        renderSealedGallery();
+      }
+
+      // Sealed collection CSV import
+      document.getElementById("sealedCollectionCsvInput").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const text = await file.text();
+        const lines = text.split("\n").filter(l => l.trim());
+
+        // Parse CSV (Column A = Name, B = Set, C = Link)
+        const items = lines.map(line => {
+          const cols = parseCSVLine(line);
+          return {
+            name: cols[0] || "",
+            set: cols[1] || "",
+            link: cols[2] || "",
+          };
+        }).filter(item => item.name);
+
+        if (!items.length) {
+          alert("No valid items found in CSV");
+          e.target.value = "";
+          return;
+        }
+
+        const res = await fetch("/api/sealed-collection/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        sealedCollection = data.results;
+        renderSealedGallery();
+        e.target.value = "";
+        alert(`Imported ${items.length} products to sealed collection!`);
+      });
+
       loadCards();
       loadSealed();
       loadCollection();
+      loadSealedCollection();
     </script>
   </body>
 </html>

@@ -83,6 +83,24 @@ async function initDb() {
       UPDATE collection SET position = id WHERE position = 0 OR position IS NULL
     `);
 
+    // Create sealed collection table (sealed products you own)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sealed_collection (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        set_name VARCHAR(255) DEFAULT '',
+        price DECIMAL(10,2),
+        image TEXT,
+        link TEXT DEFAULT '',
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Initialize positions for sealed collection
+    await pool.query(`
+      UPDATE sealed_collection SET position = id WHERE position = 0 OR position IS NULL
+    `);
+
     console.log("Database initialized");
   } catch (e) {
     console.error("Database init error:", e.message);
@@ -698,6 +716,215 @@ app.post("/api/collection/prices", async (req, res) => {
     res.json({ results: updated.rows.map(rowToCollectionItem) });
   } catch (e) {
     console.error("Collection prices error:", e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ==================== SEALED COLLECTION API ====================
+
+// Helper to convert DB row to sealed collection item API format
+function rowToSealedCollectionItem(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    set: row.set_name,
+    price: row.price ? parseFloat(row.price) : null,
+    image: row.image,
+    link: row.link,
+  };
+}
+
+// GET all sealed collection items
+app.get("/api/sealed-collection", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sealed_collection ORDER BY position ASC");
+    res.json(result.rows.map(rowToSealedCollectionItem));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST add a new sealed collection item
+app.post("/api/sealed-collection", async (req, res) => {
+  const { name, set, price, image, link } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  try {
+    const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM sealed_collection");
+    const nextPosition = maxPos.rows[0].next_pos;
+
+    const result = await pool.query(
+      `INSERT INTO sealed_collection (name, set_name, price, image, link, position)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [name, set || "", price || null, image || null, link || "", nextPosition]
+    );
+    res.json(rowToSealedCollectionItem(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// DELETE a sealed collection item
+app.delete("/api/sealed-collection/:id", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM sealed_collection WHERE id = $1", [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT update a sealed collection item
+app.put("/api/sealed-collection/:id", async (req, res) => {
+  const { name, set, link } = req.body;
+  if (!name) return res.status(400).json({ error: "Name is required" });
+
+  try {
+    const result = await pool.query(
+      `UPDATE sealed_collection SET name = $1, set_name = $2, link = $3 WHERE id = $4 RETURNING *`,
+      [name, set || "", link || "", req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+    res.json(rowToSealedCollectionItem(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST bulk import sealed collection items
+app.post("/api/sealed-collection/import", async (req, res) => {
+  const { items } = req.body;
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ error: "items array is required" });
+  }
+
+  try {
+    for (const item of items) {
+      if (!item.name) continue;
+
+      // Check if item already exists
+      const existing = await pool.query(
+        "SELECT id FROM sealed_collection WHERE name = $1 AND set_name = $2",
+        [item.name, item.set || ""]
+      );
+
+      if (existing.rows.length === 0) {
+        const maxPos = await pool.query("SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM sealed_collection");
+        const nextPosition = maxPos.rows[0].next_pos;
+
+        await pool.query(
+          `INSERT INTO sealed_collection (name, set_name, link, position) VALUES ($1, $2, $3, $4)`,
+          [item.name, item.set || "", item.link || "", nextPosition]
+        );
+      }
+    }
+
+    const result = await pool.query("SELECT * FROM sealed_collection ORDER BY position ASC");
+    res.json({ results: result.rows.map(rowToSealedCollectionItem) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT reorder sealed collection items
+app.put("/api/sealed-collection/reorder", async (req, res) => {
+  const { itemIds } = req.body;
+  if (!itemIds || !Array.isArray(itemIds)) {
+    return res.status(400).json({ error: "itemIds array is required" });
+  }
+
+  try {
+    for (let i = 0; i < itemIds.length; i++) {
+      await pool.query("UPDATE sealed_collection SET position = $1 WHERE id = $2", [i, itemIds[i]]);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST fetch prices for all sealed collection items
+app.post("/api/sealed-collection/prices", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM sealed_collection");
+    const items = result.rows;
+    console.log(`📦 Fetching prices for ${items.length} sealed collection items...`);
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      let price = null;
+      let image = null;
+
+      console.log(`[${i + 1}/${items.length}] Processing: ${item.name} | Link: ${item.link || "(no link)"}`);
+
+      if (!item.link) {
+        console.log(`  ⚠ No link provided, skipping price fetch`);
+        continue;
+      }
+
+      const html = await fetchHtml(item.link);
+      await sleep(800);
+
+      if (!html) {
+        console.log(`  ✗ Failed to fetch HTML from ${item.link}`);
+        continue;
+      }
+
+      const $ = cheerio.load(html);
+
+      // Price
+      const selectors = [
+        "#used_price td.price",
+        "#used_price .price",
+        "td#used_price",
+        ".js-price",
+      ];
+      for (const sel of selectors) {
+        const el = $(sel).first();
+        if (el.length) {
+          const text = el.text().trim().replace(/[^0-9.]/g, "");
+          if (text && parseFloat(text) > 0) {
+            price = parseFloat(text);
+            console.log(`  ✓ Price: $${text}`);
+            break;
+          }
+        }
+      }
+
+      if (!price) {
+        console.log(`  ⚠ No price found on page`);
+      }
+
+      // Image
+      const img = $('img[itemprop="image"]').first().attr("src");
+      if (img) {
+        image = img;
+        console.log(`  ✓ Image found`);
+      }
+
+      // Update item in database
+      await pool.query(
+        `UPDATE sealed_collection SET price = $1, image = $2 WHERE id = $3`,
+        [price, image, item.id]
+      );
+    }
+
+    console.log(`✅ Sealed collection price fetch complete`);
+
+    // Return updated items
+    const updated = await pool.query("SELECT * FROM sealed_collection ORDER BY position ASC");
+    res.json({ results: updated.rows.map(rowToSealedCollectionItem) });
+  } catch (e) {
+    console.error("Sealed collection prices error:", e);
     res.status(500).json({ error: "Database error" });
   }
 });
