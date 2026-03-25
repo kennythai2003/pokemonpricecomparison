@@ -1119,6 +1119,157 @@
         justify-content: flex-end;
         margin-top: 20px;
       }
+
+      /* Price Details Modal */
+      .price-modal {
+        max-width: 420px;
+        position: relative;
+      }
+      .modal-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--muted);
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.2s;
+      }
+      .modal-close:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .price-modal-header {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .price-modal-image {
+        width: 100px;
+        height: 140px;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        background: var(--surface2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .price-modal-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .price-modal-image .placeholder {
+        font-size: 2.5rem;
+      }
+      .price-modal-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .price-modal-name {
+        font-family: var(--font-display);
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .price-modal-set {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .price-modal-prices {
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+      .price-modal-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+      }
+      .price-modal-row:not(:last-child) {
+        border-bottom: 1px solid var(--border);
+      }
+      .price-label {
+        font-size: 0.85rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .price-value {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .price-value.positive {
+        color: var(--positive);
+      }
+      .price-value.negative {
+        color: var(--negative);
+      }
+      .price-modal-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .price-link-btn {
+        text-align: center;
+        text-decoration: none;
+        justify-content: center;
+      }
+      .btn-secondary {
+        background: linear-gradient(135deg, #e8a8a8 0%, #c85858 100%);
+        color: white;
+        box-shadow: 0 4px 14px rgba(200, 88, 88, 0.35);
+      }
+      .btn-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(200, 88, 88, 0.45);
+      }
+
+      /* Clickable card row */
+      .card-row-clickable {
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .card-row-clickable:hover {
+        background: var(--surface2);
+      }
+      .card-row-clickable td:first-child,
+      .card-row-clickable td:last-child {
+        cursor: default;
+      }
+
+      @media (max-width: 768px) {
+        .price-modal {
+          max-width: 95%;
+          padding: 16px;
+        }
+        .price-modal-header {
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .price-modal-image {
+          width: 120px;
+          height: 168px;
+        }
+        .price-modal-name {
+          font-size: 1.1rem;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1399,6 +1550,46 @@
       <!-- end tabs-container -->
     </div>
 
+    <!-- Card Price Details Modal -->
+    <div class="modal-overlay" id="priceModal">
+      <div class="modal price-modal">
+        <button class="modal-close" onclick="closePriceModal()">&times;</button>
+        <div class="price-modal-header">
+          <div class="price-modal-image" id="priceModalImage"></div>
+          <div class="price-modal-info">
+            <div class="price-modal-name" id="priceModalName"></div>
+            <div class="price-modal-set" id="priceModalSet"></div>
+          </div>
+        </div>
+        <div class="price-modal-prices">
+          <div class="price-modal-row">
+            <span class="price-label">US Price</span>
+            <span class="price-value" id="priceModalUS"></span>
+          </div>
+          <div class="price-modal-row">
+            <span class="price-label">JP Price</span>
+            <span class="price-value" id="priceModalJP"></span>
+          </div>
+          <div class="price-modal-row">
+            <span class="price-label">Difference</span>
+            <span class="price-value" id="priceModalDiff"></span>
+          </div>
+          <div class="price-modal-row">
+            <span class="price-label">Target Range</span>
+            <span class="price-value" id="priceModalTarget"></span>
+          </div>
+        </div>
+        <div class="price-modal-actions">
+          <a id="priceModalUSLink" href="#" target="_blank" class="btn btn-primary price-link-btn" style="display: none;">
+            View US Price History
+          </a>
+          <a id="priceModalJPLink" href="#" target="_blank" class="btn btn-secondary price-link-btn" style="display: none;">
+            View JP Price History
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Edit Collection Item Modal -->
     <div class="modal-overlay" id="editModal">
       <div class="modal">
@@ -1540,7 +1731,7 @@
               const gotItBtnClass = r.gotIt ? "got-it-btn active" : "got-it-btn";
               const gotItText = r.gotIt ? "✓ Got it" : "Got it?";
 
-              return `<tr class="draggable ${gotItClass}" draggable="true" data-id="${r.id}">
+              return `<tr class="draggable card-row-clickable ${gotItClass}" draggable="true" data-id="${r.id}" onclick="handleRowClick(event, ${r.id})">
         <td><span class="drag-handle">⋮⋮</span></td>
         <td>${imgCell}</td>
         <td>
@@ -1554,8 +1745,8 @@
         <td>${targetRange}</td>
         <td>${links}</td>
         <td>
-          <button class="${gotItBtnClass}" onclick="toggleGotIt(${r.id})">${gotItText}</button>
-          <button class="btn btn-danger" onclick="deleteCard(${r.id})" style="margin-left: 4px;">✕</button>
+          <button class="${gotItBtnClass}" onclick="event.stopPropagation(); toggleGotIt(${r.id})">${gotItText}</button>
+          <button class="btn btn-danger" onclick="event.stopPropagation(); deleteCard(${r.id})" style="margin-left: 4px;">✕</button>
         </td>
       </tr>`;
             })
@@ -1670,6 +1861,100 @@
         const idx = cards.findIndex((c) => c.id === id);
         if (idx !== -1) cards[idx] = updated;
         renderTable();
+      }
+
+      // Price Details Modal functions
+      function openPriceModal(id) {
+        const card = cards.find(c => c.id === id);
+        if (!card) return;
+
+        // Set image
+        const imageContainer = document.getElementById("priceModalImage");
+        if (card.image) {
+          imageContainer.innerHTML = `<img src="${card.image}" alt="${card.name}" onerror="this.parentElement.innerHTML='<span class=\\'placeholder\\'>🃏</span>'" />`;
+        } else {
+          imageContainer.innerHTML = `<span class="placeholder">🃏</span>`;
+        }
+
+        // Set name and set
+        document.getElementById("priceModalName").textContent = card.name;
+        document.getElementById("priceModalSet").textContent = card.set || "";
+
+        // Set prices
+        document.getElementById("priceModalUS").textContent = card.usPrice != null ? `$${card.usPrice.toFixed(2)}` : "—";
+        document.getElementById("priceModalJP").textContent = card.jpPrice != null ? `$${card.jpPrice.toFixed(2)}` : "—";
+
+        // Set difference
+        const diffEl = document.getElementById("priceModalDiff");
+        if (card.diff != null) {
+          const sign = card.diff > 0 ? "+" : "";
+          diffEl.textContent = `${sign}$${Math.abs(card.diff).toFixed(2)} (${card.pctDiff > 0 ? "+" : ""}${card.pctDiff}%)`;
+          diffEl.className = `price-value ${card.diff > 0 ? "positive" : "negative"}`;
+        } else {
+          diffEl.textContent = "—";
+          diffEl.className = "price-value";
+        }
+
+        // Set target range
+        const targetEl = document.getElementById("priceModalTarget");
+        if (card.usPrice != null && card.jpPrice != null) {
+          const cheaper = Math.min(card.usPrice, card.jpPrice);
+          targetEl.textContent = `$${(cheaper * 0.8).toFixed(2)} - $${(cheaper * 0.9).toFixed(2)}`;
+        } else if (card.usPrice != null) {
+          targetEl.textContent = `$${(card.usPrice * 0.8).toFixed(2)} - $${(card.usPrice * 0.9).toFixed(2)}`;
+        } else if (card.jpPrice != null) {
+          targetEl.textContent = `$${(card.jpPrice * 0.8).toFixed(2)} - $${(card.jpPrice * 0.9).toFixed(2)}`;
+        } else {
+          targetEl.textContent = "—";
+        }
+
+        // Set link buttons
+        const usLinkBtn = document.getElementById("priceModalUSLink");
+        const jpLinkBtn = document.getElementById("priceModalJPLink");
+
+        if (card.usLink) {
+          usLinkBtn.href = card.usLink;
+          usLinkBtn.style.display = "flex";
+        } else {
+          usLinkBtn.style.display = "none";
+        }
+
+        if (card.jpLink) {
+          jpLinkBtn.href = card.jpLink;
+          jpLinkBtn.style.display = "flex";
+        } else {
+          jpLinkBtn.style.display = "none";
+        }
+
+        // Show modal
+        document.getElementById("priceModal").classList.add("visible");
+      }
+
+      function closePriceModal() {
+        document.getElementById("priceModal").classList.remove("visible");
+      }
+
+      // Close modal when clicking outside
+      document.getElementById("priceModal").addEventListener("click", (e) => {
+        if (e.target.classList.contains("modal-overlay")) {
+          closePriceModal();
+        }
+      });
+
+      // Handle row click - open price modal unless clicking on interactive elements
+      function handleRowClick(event, id) {
+        const target = event.target;
+        // Don't open modal if clicking on buttons, links, or drag handle
+        if (
+          target.tagName === "BUTTON" ||
+          target.tagName === "A" ||
+          target.classList.contains("drag-handle") ||
+          target.closest("button") ||
+          target.closest("a")
+        ) {
+          return;
+        }
+        openPriceModal(id);
       }
 
       document.querySelectorAll("th[data-col]").forEach((th) => {
