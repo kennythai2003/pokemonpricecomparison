@@ -10,6 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Nunito:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       :root {
         --bg: #fdf5f5;
@@ -1122,7 +1123,7 @@
 
       /* Price Details Modal */
       .price-modal {
-        max-width: 420px;
+        max-width: 500px;
         position: relative;
       }
       .modal-close {
@@ -1252,6 +1253,61 @@
         cursor: default;
       }
 
+      /* Price Chart */
+      .price-chart-section {
+        margin-bottom: 20px;
+      }
+      .price-chart-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 12px;
+      }
+      .price-chart-container {
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        min-height: 200px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .price-chart-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: #5870d0;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .price-chart-error {
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+      #priceChart {
+        width: 100% !important;
+        height: 180px !important;
+        display: none;
+      }
+      #priceChart.visible {
+        display: block;
+      }
+
       @media (max-width: 768px) {
         .price-modal {
           max-width: 95%;
@@ -1268,6 +1324,12 @@
         }
         .price-modal-name {
           font-size: 1.1rem;
+        }
+        .price-chart-container {
+          min-height: 160px;
+        }
+        #priceChart {
+          height: 140px !important;
         }
       }
     </style>
@@ -1579,12 +1641,22 @@
             <span class="price-value" id="priceModalTarget"></span>
           </div>
         </div>
+        <div class="price-chart-section">
+          <div class="price-chart-title">Price History (US)</div>
+          <div class="price-chart-container" id="priceChartContainer">
+            <div class="price-chart-loading" id="priceChartLoading">
+              <div class="loading-spinner"></div>
+              <span>Loading price history...</span>
+            </div>
+            <canvas id="priceChart"></canvas>
+            <div class="price-chart-error" id="priceChartError" style="display: none;">
+              Unable to load price history
+            </div>
+          </div>
+        </div>
         <div class="price-modal-actions">
           <a id="priceModalUSLink" href="#" target="_blank" class="btn btn-primary price-link-btn" style="display: none;">
-            View US Price History
-          </a>
-          <a id="priceModalJPLink" href="#" target="_blank" class="btn btn-secondary price-link-btn" style="display: none;">
-            View JP Price History
+            View on PriceCharting
           </a>
         </div>
       </div>
@@ -1864,6 +1936,8 @@
       }
 
       // Price Details Modal functions
+      let priceChart = null;
+
       function openPriceModal(id) {
         const card = cards.find(c => c.id === id);
         if (!card) return;
@@ -1908,10 +1982,8 @@
           targetEl.textContent = "—";
         }
 
-        // Set link buttons
+        // Set link button
         const usLinkBtn = document.getElementById("priceModalUSLink");
-        const jpLinkBtn = document.getElementById("priceModalJPLink");
-
         if (card.usLink) {
           usLinkBtn.href = card.usLink;
           usLinkBtn.style.display = "flex";
@@ -1919,19 +1991,122 @@
           usLinkBtn.style.display = "none";
         }
 
-        if (card.jpLink) {
-          jpLinkBtn.href = card.jpLink;
-          jpLinkBtn.style.display = "flex";
-        } else {
-          jpLinkBtn.style.display = "none";
-        }
-
         // Show modal
         document.getElementById("priceModal").classList.add("visible");
+
+        // Reset chart state
+        document.getElementById("priceChartLoading").style.display = "flex";
+        document.getElementById("priceChartError").style.display = "none";
+        document.getElementById("priceChart").classList.remove("visible");
+        if (priceChart) {
+          priceChart.destroy();
+          priceChart = null;
+        }
+
+        // Fetch and render chart if US link exists
+        if (card.usLink) {
+          fetchPriceChart(card.usLink);
+        } else {
+          document.getElementById("priceChartLoading").style.display = "none";
+          document.getElementById("priceChartError").style.display = "block";
+          document.getElementById("priceChartError").textContent = "No price link available";
+        }
+      }
+
+      async function fetchPriceChart(url) {
+        try {
+          const res = await fetch("/api/chart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+          });
+          const data = await res.json();
+
+          document.getElementById("priceChartLoading").style.display = "none";
+
+          if (data.pricePoints && data.pricePoints.length > 0) {
+            renderPriceChart(data.pricePoints);
+          } else {
+            document.getElementById("priceChartError").style.display = "block";
+            document.getElementById("priceChartError").textContent = "No price history data available";
+          }
+        } catch (e) {
+          console.error("Chart fetch error:", e);
+          document.getElementById("priceChartLoading").style.display = "none";
+          document.getElementById("priceChartError").style.display = "block";
+          document.getElementById("priceChartError").textContent = "Failed to load price history";
+        }
+      }
+
+      function renderPriceChart(pricePoints) {
+        const canvas = document.getElementById("priceChart");
+        canvas.classList.add("visible");
+
+        // Convert timestamps to dates and prices
+        const labels = pricePoints.map(p => {
+          const date = new Date(p[0]);
+          return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        });
+        const prices = pricePoints.map(p => p[1]);
+
+        // Only show every Nth label to avoid crowding
+        const step = Math.ceil(labels.length / 8);
+        const displayLabels = labels.map((l, i) => i % step === 0 ? l : '');
+
+        priceChart = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: displayLabels,
+            datasets: [{
+              label: 'Price',
+              data: prices,
+              borderColor: '#5870d0',
+              backgroundColor: 'rgba(88, 112, 208, 0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `$${ctx.raw.toFixed(2)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  font: { size: 10 },
+                  color: '#b88888'
+                }
+              },
+              y: {
+                grid: { color: 'rgba(0,0,0,0.05)' },
+                ticks: {
+                  font: { size: 10 },
+                  color: '#b88888',
+                  callback: (v) => `$${v}`
+                }
+              }
+            }
+          }
+        });
       }
 
       function closePriceModal() {
         document.getElementById("priceModal").classList.remove("visible");
+        if (priceChart) {
+          priceChart.destroy();
+          priceChart = null;
+        }
       }
 
       // Close modal when clicking outside

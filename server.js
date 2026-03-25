@@ -296,6 +296,74 @@ app.put("/api/cards/reorder", async (req, res) => {
   }
 });
 
+// POST fetch price chart data from a URL
+app.post("/api/chart", async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: "URL is required" });
+
+  try {
+    const html = await fetchHtml(url);
+    if (!html) {
+      return res.status(500).json({ error: "Failed to fetch page" });
+    }
+
+    const $ = cheerio.load(html);
+
+    // Find the price chart container - PriceCharting uses Highcharts
+    // The chart data is in a script tag that initializes the chart
+    let chartData = null;
+
+    // Look for the chart script that contains price history data
+    $('script').each((i, script) => {
+      const content = $(script).html() || '';
+      // Look for Highcharts data or VGPC chart data
+      if (content.includes('Highcharts') || content.includes('priceHistory') || content.includes('chart_data')) {
+        // Extract the data array from the script
+        const dataMatch = content.match(/data\s*:\s*\[([\s\S]*?)\]/);
+        if (dataMatch) {
+          chartData = content;
+        }
+      }
+    });
+
+    // Get the chart container HTML if it exists
+    const chartContainer = $('#pricehistory, .price-chart, #price-chart').html();
+
+    // Also get any inline chart SVG that might be present
+    const chartSvg = $('svg.highcharts-root').parent().html();
+
+    // Try to extract price history data points
+    let pricePoints = [];
+    $('script').each((i, script) => {
+      const content = $(script).html() || '';
+      // Look for price data arrays like [[timestamp, price], ...]
+      const priceMatch = content.match(/\[\s*\[\s*\d+\s*,\s*[\d.]+\s*\][\s\S]*?\]/g);
+      if (priceMatch) {
+        try {
+          // Find the largest array (likely the main price data)
+          priceMatch.forEach(match => {
+            const parsed = JSON.parse(match);
+            if (Array.isArray(parsed) && parsed.length > pricePoints.length) {
+              pricePoints = parsed;
+            }
+          });
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    });
+
+    res.json({
+      chartHtml: chartContainer || chartSvg || null,
+      pricePoints: pricePoints,
+      hasChart: !!(chartContainer || chartSvg || pricePoints.length > 0)
+    });
+  } catch (e) {
+    console.error("Chart fetch error:", e);
+    res.status(500).json({ error: "Failed to fetch chart" });
+  }
+});
+
 // POST fetch prices for all cards
 app.post("/api/prices", async (req, res) => {
   try {
