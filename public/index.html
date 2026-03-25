@@ -1642,7 +1642,7 @@
           </div>
         </div>
         <div class="price-chart-section">
-          <div class="price-chart-title">Price History (US)</div>
+          <div class="price-chart-title" id="priceChartTitle">Price History</div>
           <div class="price-chart-container" id="priceChartContainer">
             <div class="price-chart-loading" id="priceChartLoading">
               <div class="loading-spinner"></div>
@@ -2003,9 +2003,38 @@
           priceChart = null;
         }
 
-        // Fetch and render chart if US link exists
-        if (card.usLink) {
-          fetchPriceChart(card.usLink);
+        // Determine which price source is cheaper and fetch that chart
+        let chartLink = null;
+        let chartSource = "";
+
+        if (card.usPrice != null && card.jpPrice != null) {
+          // Both prices available - use the cheaper one
+          if (card.usPrice <= card.jpPrice) {
+            chartLink = card.usLink;
+            chartSource = "US";
+          } else {
+            chartLink = card.jpLink;
+            chartSource = "JP";
+          }
+        } else if (card.usPrice != null && card.usLink) {
+          chartLink = card.usLink;
+          chartSource = "US";
+        } else if (card.jpPrice != null && card.jpLink) {
+          chartLink = card.jpLink;
+          chartSource = "JP";
+        } else if (card.usLink) {
+          chartLink = card.usLink;
+          chartSource = "US";
+        } else if (card.jpLink) {
+          chartLink = card.jpLink;
+          chartSource = "JP";
+        }
+
+        // Update chart title
+        document.getElementById("priceChartTitle").textContent = chartSource ? `Price History (${chartSource})` : "Price History";
+
+        if (chartLink) {
+          fetchPriceChart(chartLink);
         } else {
           document.getElementById("priceChartLoading").style.display = "none";
           document.getElementById("priceChartError").style.display = "block";
