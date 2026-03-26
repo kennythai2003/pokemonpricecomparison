@@ -47,6 +47,10 @@ async function initDb() {
     await pool.query(`
       ALTER TABLE cards ADD COLUMN IF NOT EXISTS got_it BOOLEAN DEFAULT FALSE
     `);
+    // Add purchase_price column if it doesn't exist
+    await pool.query(`
+      ALTER TABLE cards ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(10,2)
+    `);
 
     // Create sealed products table
     await pool.query(`
@@ -103,6 +107,22 @@ async function initDb() {
     // Initialize positions for sealed collection
     await pool.query(`
       UPDATE sealed_collection SET position = id WHERE position = 0 OR position IS NULL
+    `);
+    // Add purchase_price column to sealed_collection if it doesn't exist
+    await pool.query(`
+      ALTER TABLE sealed_collection ADD COLUMN IF NOT EXISTS purchase_price DECIMAL(10,2)
+    `);
+
+    // Create portfolio_history table to track value over time
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS portfolio_history (
+        id SERIAL PRIMARY KEY,
+        total_value DECIMAL(10,2) NOT NULL,
+        total_cost DECIMAL(10,2) NOT NULL,
+        card_value DECIMAL(10,2) DEFAULT 0,
+        sealed_value DECIMAL(10,2) DEFAULT 0,
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
     `);
 
     console.log("Database initialized");
@@ -197,6 +217,7 @@ function rowToCard(row) {
     pctDiff: row.pct_diff ? parseFloat(row.pct_diff) : null,
     image: row.image,
     gotIt: row.got_it || false,
+    purchasePrice: row.purchase_price ? parseFloat(row.purchase_price) : null,
   };
 }
 
@@ -290,6 +311,24 @@ app.put("/api/cards/reorder", async (req, res) => {
       await pool.query("UPDATE cards SET position = $1 WHERE id = $2", [i, cardIds[i]]);
     }
     res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// PUT update card purchase price
+app.put("/api/cards/:id/purchase-price", async (req, res) => {
+  const { purchasePrice } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE cards SET purchase_price = $1 WHERE id = $2 RETURNING *`,
+      [purchasePrice, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+    res.json(rowToCard(result.rows[0]));
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "Database error" });
@@ -821,6 +860,7 @@ function rowToSealedCollectionItem(row) {
     price: row.price ? parseFloat(row.price) : null,
     image: row.image,
     link: row.link,
+    purchasePrice: row.purchase_price ? parseFloat(row.purchase_price) : null,
   };
 }
 
@@ -942,6 +982,24 @@ app.put("/api/sealed-collection/reorder", async (req, res) => {
   }
 });
 
+// PUT update sealed collection item purchase price
+app.put("/api/sealed-collection/:id/purchase-price", async (req, res) => {
+  const { purchasePrice } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE sealed_collection SET purchase_price = $1 WHERE id = $2 RETURNING *`,
+      [purchasePrice, req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+    res.json(rowToSealedCollectionItem(result.rows[0]));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // POST fetch prices for all sealed collection items
 app.post("/api/sealed-collection/prices", async (req, res) => {
   try {
@@ -1015,6 +1073,112 @@ app.post("/api/sealed-collection/prices", async (req, res) => {
     res.json({ results: updated.rows.map(rowToSealedCollectionItem) });
   } catch (e) {
     console.error("Sealed collection prices error:", e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ==================== PORTFOLIO API ====================
+
+// Helper function to calculate portfolio values
+async function calculatePortfolioValues() {
+  // Get cards marked as "got it" with their prices
+  const cardsResult = await pool.query(
+    "SELECT us_price, jp_price, purchase_price FROM cards WHERE got_it = true"
+  );
+
+  // Get sealed collection items with their prices
+  const sealedResult = await pool.query(
+    "SELECT price, purchase_price FROM sealed_collection"
+  );
+
+  let cardValue = 0;
+  let cardCost = 0;
+  for (const card of cardsResult.rows) {
+    // Use the lower of US/JP price as current value
+    const usPrice = card.us_price ? parseFloat(card.us_price) : null;
+    const jpPrice = card.jp_price ? parseFloat(card.jp_price) : null;
+    if (usPrice != null && jpPrice != null) {
+      cardValue += Math.min(usPrice, jpPrice);
+    } else if (usPrice != null) {
+      cardValue += usPrice;
+    } else if (jpPrice != null) {
+      cardValue += jpPrice;
+    }
+    if (card.purchase_price) {
+      cardCost += parseFloat(card.purchase_price);
+    }
+  }
+
+  let sealedValue = 0;
+  let sealedCost = 0;
+  for (const item of sealedResult.rows) {
+    if (item.price) {
+      sealedValue += parseFloat(item.price);
+    }
+    if (item.purchase_price) {
+      sealedCost += parseFloat(item.purchase_price);
+    }
+  }
+
+  return {
+    totalValue: cardValue + sealedValue,
+    totalCost: cardCost + sealedCost,
+    cardValue,
+    sealedValue
+  };
+}
+
+// GET portfolio history
+app.get("/api/portfolio", async (req, res) => {
+  try {
+    const history = await pool.query(
+      "SELECT * FROM portfolio_history ORDER BY recorded_at ASC"
+    );
+
+    // Also get current values
+    const current = await calculatePortfolioValues();
+
+    res.json({
+      history: history.rows.map(row => ({
+        id: row.id,
+        totalValue: parseFloat(row.total_value),
+        totalCost: parseFloat(row.total_cost),
+        cardValue: row.card_value ? parseFloat(row.card_value) : 0,
+        sealedValue: row.sealed_value ? parseFloat(row.sealed_value) : 0,
+        recordedAt: row.recorded_at
+      })),
+      current
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// POST record a portfolio snapshot
+app.post("/api/portfolio/snapshot", async (req, res) => {
+  try {
+    const values = await calculatePortfolioValues();
+
+    const result = await pool.query(
+      `INSERT INTO portfolio_history (total_value, total_cost, card_value, sealed_value)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [values.totalValue, values.totalCost, values.cardValue, values.sealedValue]
+    );
+
+    res.json({
+      snapshot: {
+        id: result.rows[0].id,
+        totalValue: parseFloat(result.rows[0].total_value),
+        totalCost: parseFloat(result.rows[0].total_cost),
+        cardValue: parseFloat(result.rows[0].card_value),
+        sealedValue: parseFloat(result.rows[0].sealed_value),
+        recordedAt: result.rows[0].recorded_at
+      }
+    });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "Database error" });
   }
 });

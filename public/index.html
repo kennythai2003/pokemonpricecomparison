@@ -1332,6 +1332,174 @@
           height: 140px !important;
         }
       }
+
+      /* Portfolio Tab Styles */
+      .portfolio-chart-container {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow);
+        height: 300px;
+      }
+      #portfolioChart {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .portfolio-summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .portfolio-card {
+        background: var(--surface);
+        border-radius: var(--radius-sm);
+        padding: 20px;
+        text-align: center;
+        box-shadow: var(--shadow);
+      }
+      .portfolio-card-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+      }
+      .portfolio-card-value {
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .portfolio-card-value.positive {
+        color: var(--positive);
+      }
+      .portfolio-card-value.negative {
+        color: var(--negative);
+      }
+      .portfolio-breakdown {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow);
+      }
+      .portfolio-breakdown h3 {
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+      .portfolio-breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .portfolio-breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+      }
+      .breakdown-label {
+        color: var(--text2);
+        font-weight: 500;
+      }
+      .breakdown-value {
+        font-weight: 700;
+        color: var(--text);
+      }
+      .portfolio-items {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+      .portfolio-items h3 {
+        font-family: var(--font-display);
+        font-size: 1.2rem;
+        margin-bottom: 16px;
+        color: var(--text);
+      }
+      .portfolio-items-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .portfolio-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 16px;
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+      }
+      .portfolio-item-img {
+        width: 50px;
+        height: 70px;
+        object-fit: contain;
+        border-radius: 4px;
+      }
+      .portfolio-item-info {
+        flex: 1;
+      }
+      .portfolio-item-name {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .portfolio-item-type {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+      .portfolio-item-prices {
+        text-align: right;
+      }
+      .portfolio-item-current {
+        font-weight: 700;
+        color: var(--text);
+      }
+      .portfolio-item-cost {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .portfolio-item-profit {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .portfolio-item-profit.positive {
+        color: var(--positive);
+      }
+      .portfolio-item-profit.negative {
+        color: var(--negative);
+      }
+      .portfolio-item-edit {
+        background: var(--lavender-light);
+        border: none;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: #5870d0;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .portfolio-item-edit:hover {
+        background: var(--lavender);
+      }
+      @media (max-width: 768px) {
+        .portfolio-summary {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .portfolio-breakdown-grid {
+          grid-template-columns: 1fr;
+        }
+        .portfolio-item {
+          flex-wrap: wrap;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1520,6 +1688,7 @@
           <button class="tab" data-tab="sealed">Sealed</button>
           <button class="tab" data-tab="collection">Card Collection</button>
           <button class="tab" data-tab="sealedCollection">Sealed Collection</button>
+          <button class="tab" data-tab="portfolio">Portfolio</button>
         </div>
 
         <!-- Cards Tab Content -->
@@ -1608,6 +1777,58 @@
           </div>
           <div class="gallery" id="sealedGalleryGrid"></div>
         </div>
+
+        <!-- Portfolio Tab Content -->
+        <div class="tab-content tab-panel" id="portfolioTab">
+          <div class="results-header" style="margin-top: 16px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <h2>Portfolio Value</h2>
+              <span class="pill pill-mint" id="portfolioCurrentValue">$0.00</span>
+            </div>
+          </div>
+
+          <div class="portfolio-chart-container">
+            <canvas id="portfolioChart"></canvas>
+          </div>
+
+          <div class="portfolio-summary">
+            <div class="portfolio-card">
+              <div class="portfolio-card-label">Total Value</div>
+              <div class="portfolio-card-value" id="portfolioTotalValue">$0.00</div>
+            </div>
+            <div class="portfolio-card">
+              <div class="portfolio-card-label">Total Cost</div>
+              <div class="portfolio-card-value" id="portfolioTotalCost">$0.00</div>
+            </div>
+            <div class="portfolio-card">
+              <div class="portfolio-card-label">Profit/Loss</div>
+              <div class="portfolio-card-value" id="portfolioProfitLoss">$0.00</div>
+            </div>
+            <div class="portfolio-card">
+              <div class="portfolio-card-label">ROI</div>
+              <div class="portfolio-card-value" id="portfolioROI">0%</div>
+            </div>
+          </div>
+
+          <div class="portfolio-breakdown">
+            <h3>Breakdown</h3>
+            <div class="portfolio-breakdown-grid">
+              <div class="portfolio-breakdown-item">
+                <div class="breakdown-label">Cards (Got It)</div>
+                <div class="breakdown-value" id="portfolioCardValue">$0.00</div>
+              </div>
+              <div class="portfolio-breakdown-item">
+                <div class="breakdown-label">Sealed Collection</div>
+                <div class="breakdown-value" id="portfolioSealedValue">$0.00</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="portfolio-items">
+            <h3>Portfolio Items</h3>
+            <div class="portfolio-items-list" id="portfolioItemsList"></div>
+          </div>
+        </div>
       </div>
       <!-- end tabs-container -->
     </div>
@@ -1686,11 +1907,34 @@
       </div>
     </div>
 
+    <!-- Edit Purchase Price Modal -->
+    <div class="modal-overlay" id="purchasePriceModal">
+      <div class="modal">
+        <div class="modal-title">Edit Purchase Price</div>
+        <input type="hidden" id="purchasePriceItemId" />
+        <input type="hidden" id="purchasePriceItemType" />
+        <div class="field">
+          <label>Item Name</label>
+          <input id="purchasePriceItemName" disabled style="background: var(--surface2);" />
+        </div>
+        <div class="field">
+          <label>Purchase Price ($)</label>
+          <input id="purchasePriceValue" type="number" step="0.01" placeholder="0.00" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closePurchasePriceModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="savePurchasePrice()">Save</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       let cards = [];
       let sealedProducts = [];
       let collection = [];
       let sealedCollection = [];
+      let portfolioHistory = [];
+      let portfolioChart = null;
       let sortCol = null,
         sortDir = 1;
       let sealedSortCol = null,
@@ -1709,6 +1953,10 @@
           document
             .getElementById(tab.dataset.tab + "Tab")
             .classList.add("active");
+          // Load portfolio data when switching to portfolio tab
+          if (tab.dataset.tab === "portfolio") {
+            loadPortfolio();
+          }
         });
       });
 
@@ -2213,6 +2461,8 @@
         cards = data.results;
         document.getElementById("statusBar").classList.remove("visible");
         renderTable();
+        // Record portfolio snapshot after price refresh
+        recordPortfolioSnapshot();
       }
 
       document.getElementById("exportBtn").addEventListener("click", () => {
@@ -2959,6 +3209,8 @@
         sealedCollection = data.results;
         document.getElementById("statusBar").classList.remove("visible");
         renderSealedGallery();
+        // Record portfolio snapshot after price refresh
+        recordPortfolioSnapshot();
       }
 
       // Sealed collection CSV import
@@ -2995,6 +3247,270 @@
         renderSealedGallery();
         e.target.value = "";
         alert(`Imported ${items.length} products to sealed collection!`);
+      });
+
+      // ==================== PORTFOLIO FUNCTIONS ====================
+
+      async function loadPortfolio() {
+        try {
+          const res = await fetch("/api/portfolio");
+          const data = await res.json();
+          portfolioHistory = data.history;
+          updatePortfolioUI(data.current);
+          renderPortfolioChart();
+          renderPortfolioItems();
+        } catch (e) {
+          console.error("Failed to load portfolio:", e);
+        }
+      }
+
+      function updatePortfolioUI(current) {
+        const totalValue = current.totalValue || 0;
+        const totalCost = current.totalCost || 0;
+        const profit = totalValue - totalCost;
+        const roi = totalCost > 0 ? ((profit / totalCost) * 100) : 0;
+
+        document.getElementById("portfolioCurrentValue").textContent = `$${totalValue.toFixed(2)}`;
+        document.getElementById("portfolioTotalValue").textContent = `$${totalValue.toFixed(2)}`;
+        document.getElementById("portfolioTotalCost").textContent = `$${totalCost.toFixed(2)}`;
+
+        const profitEl = document.getElementById("portfolioProfitLoss");
+        const sign = profit >= 0 ? "+" : "";
+        profitEl.textContent = `${sign}$${Math.abs(profit).toFixed(2)}`;
+        profitEl.className = `portfolio-card-value ${profit >= 0 ? "positive" : "negative"}`;
+
+        const roiEl = document.getElementById("portfolioROI");
+        roiEl.textContent = `${roi >= 0 ? "+" : ""}${roi.toFixed(1)}%`;
+        roiEl.className = `portfolio-card-value ${roi >= 0 ? "positive" : "negative"}`;
+
+        document.getElementById("portfolioCardValue").textContent = `$${(current.cardValue || 0).toFixed(2)}`;
+        document.getElementById("portfolioSealedValue").textContent = `$${(current.sealedValue || 0).toFixed(2)}`;
+      }
+
+      function renderPortfolioChart() {
+        const canvas = document.getElementById("portfolioChart");
+        const ctx = canvas.getContext("2d");
+
+        if (portfolioChart) {
+          portfolioChart.destroy();
+        }
+
+        if (portfolioHistory.length === 0) {
+          // No data yet
+          portfolioChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ['No data yet'],
+              datasets: [{
+                label: 'Portfolio Value',
+                data: [0],
+                borderColor: '#5870d0',
+                backgroundColor: 'rgba(88, 112, 208, 0.1)',
+                fill: true
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } }
+            }
+          });
+          return;
+        }
+
+        const labels = portfolioHistory.map(h => {
+          const date = new Date(h.recordedAt);
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+
+        const values = portfolioHistory.map(h => h.totalValue);
+        const costs = portfolioHistory.map(h => h.totalCost);
+
+        portfolioChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Portfolio Value',
+                data: values,
+                borderColor: '#5870d0',
+                backgroundColor: 'rgba(88, 112, 208, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                borderWidth: 2
+              },
+              {
+                label: 'Total Cost',
+                data: costs,
+                borderColor: '#b88888',
+                backgroundColor: 'transparent',
+                borderDash: [5, 5],
+                tension: 0.3,
+                pointRadius: 0,
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false }
+              },
+              y: {
+                ticks: {
+                  callback: (v) => `$${v}`
+                }
+              }
+            }
+          }
+        });
+      }
+
+      function renderPortfolioItems() {
+        const container = document.getElementById("portfolioItemsList");
+
+        // Get cards with got_it = true
+        const gotItCards = cards.filter(c => c.gotIt);
+
+        // Combine with sealed collection
+        const items = [];
+
+        gotItCards.forEach(card => {
+          const currentPrice = card.usPrice != null && card.jpPrice != null
+            ? Math.min(card.usPrice, card.jpPrice)
+            : card.usPrice || card.jpPrice || 0;
+          items.push({
+            id: card.id,
+            type: 'card',
+            name: card.name,
+            set: card.set,
+            image: card.image,
+            currentPrice,
+            purchasePrice: card.purchasePrice || 0
+          });
+        });
+
+        sealedCollection.forEach(item => {
+          items.push({
+            id: item.id,
+            type: 'sealed',
+            name: item.name,
+            set: item.set,
+            image: item.image,
+            currentPrice: item.price || 0,
+            purchasePrice: item.purchasePrice || 0
+          });
+        });
+
+        if (items.length === 0) {
+          container.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 24px;">No items in portfolio. Mark cards as "Got it" or add items to your sealed collection.</div>';
+          return;
+        }
+
+        container.innerHTML = items.map(item => {
+          const profit = item.currentPrice - item.purchasePrice;
+          const profitClass = profit >= 0 ? 'positive' : 'negative';
+          const profitSign = profit >= 0 ? '+' : '';
+
+          return `
+            <div class="portfolio-item">
+              ${item.image
+                ? `<img src="${item.image}" class="portfolio-item-img" alt="${item.name}">`
+                : `<div class="portfolio-item-img" style="background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🃏</div>`
+              }
+              <div class="portfolio-item-info">
+                <div class="portfolio-item-name">${item.name}</div>
+                <div class="portfolio-item-type">${item.type === 'card' ? 'Card (Got It)' : 'Sealed Product'}${item.set ? ` • ${item.set}` : ''}</div>
+              </div>
+              <div class="portfolio-item-prices">
+                <div class="portfolio-item-current">$${item.currentPrice.toFixed(2)}</div>
+                <div class="portfolio-item-cost">Cost: $${item.purchasePrice.toFixed(2)}</div>
+                <div class="portfolio-item-profit ${profitClass}">${profitSign}$${Math.abs(profit).toFixed(2)}</div>
+              </div>
+              <button class="portfolio-item-edit" onclick="openPurchasePriceModal(${item.id}, '${item.type}', '${item.name.replace(/'/g, "\\'")}', ${item.purchasePrice})">Edit</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      async function recordPortfolioSnapshot() {
+        try {
+          await fetch("/api/portfolio/snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+        } catch (e) {
+          console.error("Failed to record portfolio snapshot:", e);
+        }
+      }
+
+      // Purchase price modal functions
+      function openPurchasePriceModal(id, type, name, currentPrice) {
+        document.getElementById("purchasePriceItemId").value = id;
+        document.getElementById("purchasePriceItemType").value = type;
+        document.getElementById("purchasePriceItemName").value = name;
+        document.getElementById("purchasePriceValue").value = currentPrice || '';
+        document.getElementById("purchasePriceModal").classList.add("visible");
+      }
+
+      function closePurchasePriceModal() {
+        document.getElementById("purchasePriceModal").classList.remove("visible");
+      }
+
+      async function savePurchasePrice() {
+        const id = document.getElementById("purchasePriceItemId").value;
+        const type = document.getElementById("purchasePriceItemType").value;
+        const price = parseFloat(document.getElementById("purchasePriceValue").value) || null;
+
+        try {
+          const endpoint = type === 'card'
+            ? `/api/cards/${id}/purchase-price`
+            : `/api/sealed-collection/${id}/purchase-price`;
+
+          const res = await fetch(endpoint, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ purchasePrice: price })
+          });
+
+          if (res.ok) {
+            // Reload data
+            if (type === 'card') {
+              await loadCards();
+            } else {
+              await loadSealedCollection();
+            }
+            closePurchasePriceModal();
+            // Refresh portfolio view
+            loadPortfolio();
+          }
+        } catch (e) {
+          console.error("Failed to save purchase price:", e);
+          alert("Failed to save purchase price");
+        }
+      }
+
+      // Close purchase price modal when clicking outside
+      document.getElementById("purchasePriceModal").addEventListener("click", (e) => {
+        if (e.target.classList.contains("modal-overlay")) {
+          closePurchasePriceModal();
+        }
       });
 
       loadCards();
