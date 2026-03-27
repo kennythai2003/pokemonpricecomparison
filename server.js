@@ -1155,6 +1155,150 @@ app.get("/api/portfolio", async (req, res) => {
   }
 });
 
+// POST fetch prices only for portfolio items (cards with got_it=true + sealed collection)
+app.post("/api/portfolio/prices", async (req, res) => {
+  try {
+    // Fetch prices for cards marked as "got it"
+    const cardsResult = await pool.query("SELECT * FROM cards WHERE got_it = true");
+    const gotItCards = cardsResult.rows;
+    console.log(`📦 Fetching prices for ${gotItCards.length} portfolio cards...`);
+
+    for (let i = 0; i < gotItCards.length; i++) {
+      const card = gotItCards[i];
+      let usPrice = null;
+      let jpPrice = null;
+      let image = null;
+
+      console.log(`[${i + 1}/${gotItCards.length}] Processing card: ${card.name}`);
+
+      // Fetch US page HTML
+      const usHtml = card.us_link ? await fetchHtml(card.us_link) : null;
+      await sleep(800);
+
+      if (usHtml) {
+        const $ = cheerio.load(usHtml);
+        const selectors = [
+          "#used_price td.price",
+          "#used_price .price",
+          "td#used_price",
+          ".js-price",
+        ];
+        for (const sel of selectors) {
+          const el = $(sel).first();
+          if (el.length) {
+            const text = el.text().trim().replace(/[^0-9.]/g, "");
+            if (text && parseFloat(text) > 0) {
+              usPrice = parseFloat(text);
+              console.log(`  ✓ US $${text}`);
+              break;
+            }
+          }
+        }
+        const img = $('img[itemprop="image"]').first().attr("src");
+        if (img) image = img;
+      }
+
+      // JP price
+      jpPrice = await scrapePrice(card.jp_link);
+      await sleep(800);
+
+      const diff =
+        usPrice != null && jpPrice != null
+          ? parseFloat((usPrice - jpPrice).toFixed(2))
+          : null;
+      const pctDiff =
+        usPrice != null && jpPrice != null && jpPrice !== 0
+          ? parseFloat((((usPrice - jpPrice) / jpPrice) * 100).toFixed(1))
+          : null;
+
+      await pool.query(
+        `UPDATE cards SET us_price = $1, jp_price = $2, diff = $3, pct_diff = $4, image = $5 WHERE id = $6`,
+        [usPrice, jpPrice, diff, pctDiff, image, card.id]
+      );
+    }
+
+    // Fetch prices for sealed collection items
+    const sealedResult = await pool.query("SELECT * FROM sealed_collection");
+    const sealedItems = sealedResult.rows;
+    console.log(`📦 Fetching prices for ${sealedItems.length} sealed collection items...`);
+
+    for (let i = 0; i < sealedItems.length; i++) {
+      const item = sealedItems[i];
+      let price = null;
+      let image = null;
+
+      console.log(`[${i + 1}/${sealedItems.length}] Processing sealed: ${item.name}`);
+
+      if (!item.link) {
+        console.log(`  ⚠ No link provided, skipping`);
+        continue;
+      }
+
+      const html = await fetchHtml(item.link);
+      await sleep(800);
+
+      if (html) {
+        const $ = cheerio.load(html);
+        const selectors = [
+          "#used_price td.price",
+          "#used_price .price",
+          "td#used_price",
+          ".js-price",
+        ];
+        for (const sel of selectors) {
+          const el = $(sel).first();
+          if (el.length) {
+            const text = el.text().trim().replace(/[^0-9.]/g, "");
+            if (text && parseFloat(text) > 0) {
+              price = parseFloat(text);
+              console.log(`  ✓ Price: $${text}`);
+              break;
+            }
+          }
+        }
+        const img = $('img[itemprop="image"]').first().attr("src");
+        if (img) image = img;
+      }
+
+      await pool.query(
+        `UPDATE sealed_collection SET price = $1, image = $2 WHERE id = $3`,
+        [price, image, item.id]
+      );
+    }
+
+    console.log(`✅ Portfolio price fetch complete`);
+
+    // Record a portfolio snapshot
+    const values = await calculatePortfolioValues();
+    await pool.query(
+      `INSERT INTO portfolio_history (total_value, total_cost, card_value, sealed_value)
+       VALUES ($1, $2, $3, $4)`,
+      [values.totalValue, values.totalCost, values.cardValue, values.sealedValue]
+    );
+
+    // Return updated portfolio data
+    const history = await pool.query(
+      "SELECT * FROM portfolio_history ORDER BY recorded_at ASC"
+    );
+    const current = await calculatePortfolioValues();
+
+    res.json({
+      history: history.rows.map(row => ({
+        id: row.id,
+        totalValue: parseFloat(row.total_value),
+        totalCost: parseFloat(row.total_cost),
+        cardValue: row.card_value ? parseFloat(row.card_value) : 0,
+        sealedValue: row.sealed_value ? parseFloat(row.sealed_value) : 0,
+        recordedAt: row.recorded_at
+      })),
+      current
+    });
+  } catch (e) {
+    console.error("Portfolio prices error:", e);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
 // POST record a portfolio snapshot
 app.post("/api/portfolio/snapshot", async (req, res) => {
   try {

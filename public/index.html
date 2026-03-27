@@ -1785,6 +1785,11 @@
               <h2>Portfolio Value</h2>
               <span class="pill pill-mint" id="portfolioCurrentValue">$0.00</span>
             </div>
+            <div class="actions">
+              <button class="btn btn-mint" id="refreshPortfolioPricesBtn" onclick="fetchPortfolioPrices()">
+                ↻ Refresh Portfolio Prices
+              </button>
+            </div>
           </div>
 
           <div class="portfolio-chart-container">
@@ -3302,7 +3307,7 @@
             data: {
               labels: ['No data yet'],
               datasets: [{
-                label: 'Portfolio Value',
+                label: 'Profit/Loss',
                 data: [0],
                 borderColor: '#5870d0',
                 backgroundColor: 'rgba(88, 112, 208, 0.1)',
@@ -3323,8 +3328,14 @@
           return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         });
 
-        const values = portfolioHistory.map(h => h.totalValue);
-        const costs = portfolioHistory.map(h => h.totalCost);
+        // Calculate profit/loss for each data point (totalValue - totalCost)
+        const profitLoss = portfolioHistory.map(h => h.totalValue - h.totalCost);
+
+        // Determine colors based on profit/loss values
+        const isAllPositive = profitLoss.every(v => v >= 0);
+        const isAllNegative = profitLoss.every(v => v < 0);
+        const lineColor = isAllNegative ? '#c85858' : '#5bbf94';
+        const bgColor = isAllNegative ? 'rgba(200, 88, 88, 0.1)' : 'rgba(91, 191, 148, 0.1)';
 
         portfolioChart = new Chart(ctx, {
           type: 'line',
@@ -3332,25 +3343,25 @@
             labels,
             datasets: [
               {
-                label: 'Portfolio Value',
-                data: values,
-                borderColor: '#5870d0',
-                backgroundColor: 'rgba(88, 112, 208, 0.1)',
+                label: 'Profit/Loss',
+                data: profitLoss,
+                borderColor: lineColor,
+                backgroundColor: bgColor,
                 fill: true,
                 tension: 0.3,
                 pointRadius: 4,
                 pointHoverRadius: 6,
-                borderWidth: 2
-              },
-              {
-                label: 'Total Cost',
-                data: costs,
-                borderColor: '#b88888',
-                backgroundColor: 'transparent',
-                borderDash: [5, 5],
-                tension: 0.3,
-                pointRadius: 0,
-                borderWidth: 2
+                borderWidth: 2,
+                segment: {
+                  borderColor: ctx => {
+                    const value = ctx.p1.parsed.y;
+                    return value >= 0 ? '#5bbf94' : '#c85858';
+                  }
+                },
+                pointBackgroundColor: ctx => {
+                  const value = ctx.parsed.y;
+                  return value >= 0 ? '#5bbf94' : '#c85858';
+                }
               }
             ]
           },
@@ -3364,7 +3375,11 @@
               },
               tooltip: {
                 callbacks: {
-                  label: (ctx) => `${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`
+                  label: (ctx) => {
+                    const value = ctx.raw;
+                    const sign = value >= 0 ? '+' : '';
+                    return `Profit/Loss: ${sign}$${value.toFixed(2)}`;
+                  }
                 }
               }
             },
@@ -3374,7 +3389,10 @@
               },
               y: {
                 ticks: {
-                  callback: (v) => `$${v}`
+                  callback: (v) => {
+                    const sign = v >= 0 ? '+' : '';
+                    return `${sign}$${v}`;
+                  }
                 }
               }
             }
@@ -3457,6 +3475,33 @@
           });
         } catch (e) {
           console.error("Failed to record portfolio snapshot:", e);
+        }
+      }
+
+      async function fetchPortfolioPrices() {
+        const btn = document.getElementById("refreshPortfolioPricesBtn");
+        btn.disabled = true;
+        btn.textContent = "Fetching prices...";
+
+        try {
+          const res = await fetch("/api/portfolio/prices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+          const data = await res.json();
+          portfolioHistory = data.history;
+          updatePortfolioUI(data.current);
+          renderPortfolioChart();
+
+          // Also reload cards and sealed collection to update local data
+          await loadCards();
+          await loadSealedCollection();
+          renderPortfolioItems();
+        } catch (e) {
+          console.error("Failed to fetch portfolio prices:", e);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "↻ Refresh Portfolio Prices";
         }
       }
 
